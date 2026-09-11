@@ -51,6 +51,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions
   ],
+
   partials: [
     Partials.Message,
     Partials.Channel,
@@ -59,15 +60,54 @@ const client = new Client({
 });
 
 // ==========================================
+// SELF ROLES
+// ==========================================
+
+const SELF_ROLES = {
+
+  // pronouns
+  role_she: "she/her",
+  role_he: "he/him",
+  role_they: "they/them",
+  role_any: "any pronouns",
+  role_ask: "ask",
+
+  // interests
+  role_gaming: "Gaming",
+  role_music: "Music",
+  role_art: "Art",
+  role_anime: "Anime",
+  role_coding: "Coding",
+  role_movies: "Movies",
+  role_reading: "Reading",
+  role_photo: "Photography",
+
+  // vibes
+  role_cute: "Cute",
+  role_soft: "Soft",
+  role_chill: "Chill",
+  role_chaotic: "Chaotic",
+  role_social: "Social",
+  role_quiet: "Quiet",
+  role_funny: "Funny",
+
+  // notifications
+  role_announcements: "Announcements",
+  role_events: "Events",
+  role_giveaways: "Giveaways",
+  role_updates: "Updates"
+};
+
+// ==========================================
 // COMMANDS
-// ONLY FUN + CHANNEL STUFF
+// ONLY FUN + CHANNEL COMMANDS
 // ==========================================
 
 const commands = [
 
-  // ==============================
+  // ========================================
   // FUN
-  // ==============================
+  // ========================================
 
   new SlashCommandBuilder()
     .setName("coinflip")
@@ -115,9 +155,9 @@ const commands = [
     .setName("trivia")
     .setDescription("get a random trivia question"),
 
-  // ==============================
-  // SERVER CHANNEL STUFF
-  // ==============================
+  // ========================================
+  // CHANNEL STUFF
+  // ========================================
 
   new SlashCommandBuilder()
     .setName("suggest")
@@ -175,7 +215,7 @@ function findChannel(guild, names) {
 // READY
 // ==========================================
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
 
   console.log("================================");
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -183,27 +223,67 @@ client.once("ready", async () => {
 
   try {
 
-    const guild = await client.guilds.fetch(GUILD_ID);
+    const guild =
+      await client.guilds.fetch(GUILD_ID);
 
     if (!guild) {
       console.error("❌ Guild not found.");
       return;
     }
 
-    // register ONLY the commands above
+    // ======================================
+    // CLEAR OLD GLOBAL COMMANDS
+    // ======================================
+
+    try {
+
+      await client.application.commands.set([]);
+
+      console.log(
+        "🗑️ Old global commands cleared."
+      );
+
+    } catch (error) {
+
+      console.error(
+        "⚠️ Could not clear global commands:"
+      );
+
+      console.error(error);
+
+    }
+
+    // ======================================
+    // REPLACE ALL COMMANDS IN THIS SERVER
+    // ======================================
+
     await guild.commands.set(commands);
 
     console.log(
       `✅ Registered ${commands.length} commands in ${guild.name}`
     );
 
-    client.user.setActivity("the server ♡", {
-      type: 0
-    });
+    console.log(
+      "🎮 Commands: coinflip, 8ball, rps, wouldyourather, trivia, suggest, confess, ticket, partner"
+    );
+
+    // ======================================
+    // BOT STATUS
+    // ======================================
+
+    client.user.setActivity(
+      "the server ♡",
+      {
+        type: 0
+      }
+    );
 
   } catch (error) {
 
-    console.error("❌ Command registration error:");
+    console.error(
+      "❌ Command registration error:"
+    );
+
     console.error(error);
 
   }
@@ -216,24 +296,26 @@ client.once("ready", async () => {
 
 client.on("guildMemberAdd", async member => {
 
-  const channel = findChannel(member.guild, [
-    "welcome",
-    "୨୧・welcome"
-  ]);
+  const channel =
+    findChannel(member.guild, [
+      "welcome",
+      "୨୧・welcome"
+    ]);
 
   if (!channel) return;
 
-  const embed = new EmbedBuilder()
-    .setTitle("♡ welcome!")
-    .setDescription(
-      `hii ${member} ♡\n\n` +
-      `welcome to **${member.guild.name}**!\n` +
-      `make yourself comfy and have fun!`
-    )
-    .setThumbnail(
-      member.user.displayAvatarURL()
-    )
-    .setTimestamp();
+  const embed =
+    new EmbedBuilder()
+      .setTitle("♡ welcome!")
+      .setDescription(
+        `hii ${member} ♡\n\n` +
+        `welcome to **${member.guild.name}**!\n` +
+        `make yourself comfy and have fun!`
+      )
+      .setThumbnail(
+        member.user.displayAvatarURL()
+      )
+      .setTimestamp();
 
   await channel.send({
     embeds: [embed]
@@ -247,20 +329,22 @@ client.on("guildMemberAdd", async member => {
 
 client.on("guildMemberRemove", async member => {
 
-  const channel = findChannel(member.guild, [
-    "goodbye",
-    "୨୧・goodbye"
-  ]);
+  const channel =
+    findChannel(member.guild, [
+      "goodbye",
+      "୨୧・goodbye"
+    ]);
 
   if (!channel) return;
 
-  const embed = new EmbedBuilder()
-    .setTitle("♡ goodbye!")
-    .setDescription(
-      `**${member.user.username}** left the server ♡\n` +
-      `we'll miss you!`
-    )
-    .setTimestamp();
+  const embed =
+    new EmbedBuilder()
+      .setTitle("♡ goodbye!")
+      .setDescription(
+        `**${member.user.username}** left the server ♡\n` +
+        `we'll miss you!`
+      )
+      .setTimestamp();
 
   await channel.send({
     embeds: [embed]
@@ -280,7 +364,8 @@ client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
 
-  const userId = message.author.id;
+  const userId =
+    message.author.id;
 
   if (xpCooldown.has(userId)) return;
 
@@ -291,7 +376,9 @@ client.on("messageCreate", async message => {
     Math.floor(Math.random() * 8) + 5;
 
   setTimeout(() => {
+
     xpCooldown.delete(userId);
+
   }, 60000);
 
 });
@@ -310,46 +397,18 @@ client.on("interactionCreate", async interaction => {
 
     if (interaction.isButton()) {
 
-      // ==============================
-      // SELF ROLE BUTTON
-      // ==============================
+      // ====================================
+      // SELF ROLES
+      // ====================================
 
-      if (interaction.customId.startsWith("role_")) {
-
-        const SELF_ROLES = {
-
-          role_she: "she/her",
-          role_he: "he/him",
-          role_they: "they/them",
-          role_any: "any pronouns",
-          role_ask: "ask",
-
-          role_gaming: "Gaming",
-          role_music: "Music",
-          role_art: "Art",
-          role_anime: "Anime",
-          role_coding: "Coding",
-          role_movies: "Movies",
-          role_reading: "Reading",
-          role_photo: "Photography",
-
-          role_cute: "Cute",
-          role_soft: "Soft",
-          role_chill: "Chill",
-          role_chaotic: "Chaotic",
-          role_social: "Social",
-          role_quiet: "Quiet",
-          role_funny: "Funny",
-
-          role_announcements: "Announcements",
-          role_events: "Events",
-          role_giveaways: "Giveaways",
-          role_updates: "Updates"
-
-        };
+      if (
+        interaction.customId.startsWith("role_")
+      ) {
 
         const roleName =
-          SELF_ROLES[interaction.customId];
+          SELF_ROLES[
+            interaction.customId
+          ];
 
         if (!roleName) {
 
@@ -381,10 +440,10 @@ client.on("interactionCreate", async interaction => {
             interaction.user.id
           );
 
-        // ==============================
+        // ==================================
         // PRONOUNS
-        // ONLY ONE AT A TIME
-        // ==============================
+        // ONLY ONE PRONOUN ROLE
+        // ==================================
 
         const pronounIds = [
           "role_she",
@@ -413,12 +472,14 @@ client.on("interactionCreate", async interaction => {
             if (
               otherRole &&
               otherRole.id !== role.id &&
-              member.roles.cache.has(otherRole.id)
+              member.roles.cache.has(
+                otherRole.id
+              )
             ) {
 
-              await member.roles.remove(
-                otherRole
-              ).catch(() => {});
+              await member.roles
+                .remove(otherRole)
+                .catch(() => {});
 
             }
 
@@ -426,15 +487,16 @@ client.on("interactionCreate", async interaction => {
 
         }
 
-        // ==============================
+        // ==================================
         // TOGGLE ROLE
-        // ==============================
+        // ==================================
 
         if (
           member.roles.cache.has(role.id)
         ) {
 
-          await member.roles.remove(role);
+          await member.roles
+            .remove(role);
 
           return interaction.reply({
             content:
@@ -454,12 +516,13 @@ client.on("interactionCreate", async interaction => {
 
       }
 
-      // ==============================
+      // ====================================
       // CLOSE TICKET
-      // ==============================
+      // ====================================
 
       if (
-        interaction.customId === "close_ticket"
+        interaction.customId ===
+        "close_ticket"
       ) {
 
         await interaction.reply(
@@ -519,6 +582,7 @@ client.on("interactionCreate", async interaction => {
         );
 
       const answers = [
+
         "yes ♡",
         "no 💔",
         "maybe...",
@@ -531,6 +595,7 @@ client.on("interactionCreate", async interaction => {
         "i wouldn't count on it",
         "100% 😭",
         "nahhh 💀"
+
       ];
 
       const answer =
@@ -628,7 +693,9 @@ client.on("interactionCreate", async interaction => {
     // WOULD YOU RATHER
     // ======================================
 
-    if (command === "wouldyourather") {
+    if (
+      command === "wouldyourather"
+    ) {
 
       const questions = [
 
@@ -655,6 +722,7 @@ client.on("interactionCreate", async interaction => {
         "would you rather have unlimited V-Bucks or unlimited Robux?",
 
         "would you rather never sleep or never eat?"
+
       ];
 
       const question =
@@ -793,15 +861,15 @@ client.on("interactionCreate", async interaction => {
           })
           .setTimestamp();
 
-      const message =
+      const sent =
         await channel.send({
           embeds: [embed]
         });
 
-      await message.react("👍")
+      await sent.react("👍")
         .catch(() => {});
 
-      await message.react("👎")
+      await sent.react("👎")
         .catch(() => {});
 
       return interaction.reply({
@@ -842,13 +910,15 @@ client.on("interactionCreate", async interaction => {
 
       }
 
-      const number =
-        Date.now().toString().slice(-5);
+      const confessionNumber =
+        Date.now()
+          .toString()
+          .slice(-6);
 
       const embed =
         new EmbedBuilder()
           .setTitle(
-            `♡ anonymous confession #${number}`
+            `♡ anonymous confession #${confessionNumber}`
           )
           .setDescription(
             message
