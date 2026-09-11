@@ -16,12 +16,20 @@ const {
 
 const fs = require('fs');
 
+/* =========================
+   TOKEN
+========================= */
+
 const TOKEN = process.env.TOKEN;
 
 if (!TOKEN) {
   console.error('❌ TOKEN is missing from Railway variables.');
   process.exit(1);
 }
+
+/* =========================
+   CLIENT
+========================= */
 
 const client = new Client({
   intents: [
@@ -38,6 +46,10 @@ const client = new Client({
   ]
 });
 
+/* =========================
+   DATA
+========================= */
+
 const DATA_FILE = './data.json';
 
 let data = {
@@ -50,12 +62,20 @@ let data = {
 
 if (fs.existsSync(DATA_FILE)) {
   try {
+    const saved = JSON.parse(
+      fs.readFileSync(DATA_FILE, 'utf8')
+    );
+
     data = {
-      ...data,
-      ...JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))
+      xp: {},
+      warnings: {},
+      bios: {},
+      friends: {},
+      channels: {},
+      ...saved
     };
   } catch {
-    console.log('⚠️ Could not read data.json.');
+    console.log('⚠️ data.json could not be loaded.');
   }
 }
 
@@ -66,36 +86,112 @@ function saveData() {
       JSON.stringify(data, null, 2)
     );
   } catch (err) {
-    console.error('Could not save data:', err);
+    console.error('❌ Could not save data:', err);
   }
 }
 
-/* =====================================================
+/* =========================
+   RESET LOCK
+========================= */
+
+let resetting = false;
+
+/* =========================
    ROLES
-===================================================== */
+========================= */
 
 const ROLES = [
-
-  /* STAFF */
+  /* SELF / IDENTIFICATION */
 
   {
-    name: '👑・owner',
-    color: 0xff69b4
+    name: '୨୧・she/her',
+    color: 0xffb6d9
   },
 
   {
-    name: '⚡・admin',
-    color: 0xff8fab
+    name: '୨୧・he/him',
+    color: 0x9ec5fe
   },
 
   {
-    name: '🛡️・mod',
-    color: 0xc77dff
+    name: '୨୧・they/them',
+    color: 0xcdb4db
   },
 
   {
-    name: '🔨・staff',
-    color: 0x9d4edd
+    name: '୨୧・minor',
+    color: 0xffc8dd
+  },
+
+  /* INTERESTS */
+
+  {
+    name: '୨୧・gamer',
+    color: 0xa2d2ff
+  },
+
+  {
+    name: '୨୧・artist',
+    color: 0xffadad
+  },
+
+  {
+    name: '୨୧・music',
+    color: 0xbde0fe
+  },
+
+  {
+    name: '୨୧・anime',
+    color: 0xffc8dd
+  },
+
+  {
+    name: '୨୧・creator',
+    color: 0xcdb4db
+  },
+
+  /* VIBES */
+
+  {
+    name: '୨୧・social',
+    color: 0xa2d2ff
+  },
+
+  {
+    name: '୨୧・introvert',
+    color: 0xbdb2ff
+  },
+
+  {
+    name: '୨୧・extrovert',
+    color: 0xffd6a5
+  },
+
+  {
+    name: '୨୧・active',
+    color: 0xffd166
+  },
+
+  /* NOTIFICATIONS */
+
+  {
+    name: '୨୧・announcements',
+    color: 0xffb6d9
+  },
+
+  {
+    name: '୨୧・events',
+    color: 0xa2d2ff
+  },
+
+  {
+    name: '୨୧・giveaways',
+    color: 0xcdb4db
+  },
+
+  {
+    name: '୨୧・vc',
+    color: 0xbde0fe
   },
 
   /* SERVER */
@@ -131,95 +227,41 @@ const ROLES = [
   },
 
   {
-    name: '⭐・active',
-    color: 0xffd43b
-  },
-
-  {
-    name: '🕰️・og',
+    name: '⭐・og',
     color: 0xadb5bd
   },
 
-  /* SELF ROLES */
+  /* STAFF */
 
   {
-    name: '୨୧・she/her',
-    color: 0xffb6d9
+    name: '🔨・staff',
+    color: 0x9d4edd
   },
 
   {
-    name: '୨୧・he/him',
-    color: 0x9ec5fe
+    name: '🛡️・mod',
+    color: 0xc77dff
   },
 
   {
-    name: '୨୧・they/them',
-    color: 0xcdb4db
+    name: '⚡・admin',
+    color: 0xff8fab
   },
 
   {
-    name: '୨୧・any pronouns',
-    color: 0xd8f3dc
-  },
-
-  {
-    name: '୨୧・artist',
-    color: 0xffadad
-  },
-
-  {
-    name: '୨୧・gamer',
-    color: 0xbde0fe
-  },
-
-  {
-    name: '୨୧・music',
-    color: 0xcdb4db
-  },
-
-  {
-    name: '୨୧・anime',
-    color: 0xffc8dd
-  },
-
-  {
-    name: '୨୧・social',
-    color: 0xa2d2ff
-  },
-
-  {
-    name: '୨୧・introvert',
-    color: 0xbdb2ff
-  },
-
-  {
-    name: '୨୧・extrovert',
-    color: 0xffd6a5
-  },
-
-  {
-    name: '୨୧・content creator',
-    color: 0xffafcc
-  },
-
-  {
-    name: '୨୧・streamer',
-    color: 0xa2d2ff
-  },
-
-  {
-    name: '୨୧・editor',
-    color: 0xcdb4db
+    name: '👑・owner',
+    color: 0xff69b4
   }
 ];
 
-/* =====================================================
+/* =========================
    CHANNEL STRUCTURE
-===================================================== */
+========================= */
 
 const STRUCTURE = {
-
   '001・INFO': [
+    ['୨୧・welcome', 'welcome'],
+    ['୨୧・goodbye', 'goodbye'],
     ['୨୧・rules', 'rules'],
     ['୨୧・announcements', 'announcements'],
     ['୨୧・server-info', 'info'],
@@ -246,9 +288,9 @@ const STRUCTURE = {
   '004・TICKETS': []
 };
 
-/* =====================================================
+/* =========================
    HELPERS
-===================================================== */
+========================= */
 
 function getRole(guild, name) {
   return guild.roles.cache.find(
@@ -274,15 +316,18 @@ function getStaffRoles(guild) {
 function isOwner(member) {
   if (!member) return false;
 
+  if (member.id === member.guild.ownerId) {
+    return true;
+  }
+
   const ownerRole = getRole(
     member.guild,
     '👑・owner'
   );
 
-  return (
-    member.id === member.guild.ownerId ||
-    (ownerRole && member.roles.cache.has(ownerRole.id))
-  );
+  return ownerRole
+    ? member.roles.cache.has(ownerRole.id)
+    : false;
 }
 
 function isStaff(member) {
@@ -301,8 +346,12 @@ function isStaff(member) {
   );
 }
 
-function canModerate(actor, target) {
+function canModerateTarget(actor, target) {
   if (!target) return false;
+
+  if (target.id === actor.id) {
+    return false;
+  }
 
   if (target.id === target.guild.ownerId) {
     return false;
@@ -314,9 +363,13 @@ function canModerate(actor, target) {
   );
 }
 
-function makeRoleButton(name, emoji) {
+/* =========================
+   SELF ROLE BUTTON
+========================= */
+
+function selfRoleButton(name, emoji) {
   const encoded = Buffer
-    .from(name, 'utf8')
+    .from(name)
     .toString('base64');
 
   return new ButtonBuilder()
@@ -326,438 +379,667 @@ function makeRoleButton(name, emoji) {
     .setStyle(ButtonStyle.Secondary);
 }
 
-/* =====================================================
+/* =========================
    RESET SERVER
-===================================================== */
+========================= */
 
 async function resetServer(guild) {
-
-  console.log(`🔄 Resetting ${guild.name}...`);
-
-  /* DELETE ALL CHANNELS */
-
-  for (const channel of [...guild.channels.cache.values()]) {
-    try {
-      await channel.delete('Complete server reset');
-    } catch {}
+  if (resetting) {
+    throw new Error(
+      'A server reset is already running.'
+    );
   }
 
-  /* DELETE ALL REMOVABLE ROLES */
+  resetting = true;
 
-  const botMember =
-    guild.members.me ||
-    await guild.members.fetchMe().catch(() => null);
+  try {
+    console.log(
+      `🔄 Starting reset for ${guild.name}`
+    );
 
-  const botHighest =
-    botMember?.roles.highest.position || 0;
+    const me = guild.members.me;
 
-  for (const role of [...guild.roles.cache.values()]) {
+    if (!me) {
+      throw new Error(
+        'Bot member could not be found.'
+      );
+    }
 
-    if (role.id === guild.id) continue;
+    /* =========================
+       DELETE CHANNELS
+    ========================= */
 
-    if (role.managed) continue;
+    console.log('🗑️ Deleting channels...');
 
-    if (role.position >= botHighest) continue;
+    const oldChannels = [
+      ...guild.channels.cache.values()
+    ];
 
-    try {
-      await role.delete('Complete server reset');
-    } catch {}
-  }
+    for (const channel of oldChannels) {
+      try {
+        await channel.delete(
+          'Complete server reset'
+        );
+      } catch (err) {
+        console.log(
+          `⚠️ Could not delete ${channel.name}`
+        );
+      }
+    }
 
-  /* CREATE ROLES */
+    /* =========================
+       DELETE ROLES
+    ========================= */
 
-  const createdRoles = {};
+    console.log('🗑️ Deleting roles...');
 
-  for (const roleInfo of ROLES) {
+    const botHighest =
+      me.roles.highest.position;
 
-    try {
+    const oldRoles = [
+      ...guild.roles.cache.values()
+    ];
 
-      const role = await guild.roles.create({
-        name: roleInfo.name,
-        color: roleInfo.color,
-        reason: 'Complete server reset'
-      });
+    for (const role of oldRoles) {
+      if (role.id === guild.id) {
+        continue;
+      }
+
+      if (role.managed) {
+        continue;
+      }
+
+      if (role.position >= botHighest) {
+        continue;
+      }
+
+      try {
+        await role.delete(
+          'Complete server reset'
+        );
+      } catch (err) {
+        console.log(
+          `⚠️ Could not delete role ${role.name}`
+        );
+      }
+    }
+
+    /* =========================
+       CREATE ROLES
+    ========================= */
+
+    console.log('🎀 Creating roles...');
+
+    const createdRoles = {};
+
+    for (const roleInfo of ROLES) {
+      let role = guild.roles.cache.find(
+        r =>
+          r.name === roleInfo.name &&
+          !r.managed
+      );
+
+      if (!role) {
+        try {
+          role = await guild.roles.create({
+            name: roleInfo.name,
+            color: roleInfo.color,
+            reason: 'Complete server reset'
+          });
+
+          console.log(
+            `✅ Created ${roleInfo.name}`
+          );
+        } catch (err) {
+          console.log(
+            `❌ Could not create ${roleInfo.name}: ${err.message}`
+          );
+
+          continue;
+        }
+      }
 
       createdRoles[roleInfo.name] = role;
-
-    } catch (err) {
-
-      console.log(
-        `⚠️ Could not create role ${roleInfo.name}:`,
-        err.message
-      );
-
     }
-  }
 
-  /* CREATE CATEGORIES */
+    /* =========================
+       CREATE CATEGORIES
+    ========================= */
 
-  const channels = {};
+    console.log(
+      '📁 Creating categories/channels...'
+    );
 
-  for (
-    const [categoryName, channelList]
-    of Object.entries(STRUCTURE)
-  ) {
-
-    const category =
-      await guild.channels.create({
-        name: categoryName,
-        type: ChannelType.GuildCategory,
-        reason: 'Complete server reset'
-      });
-
-    channels[categoryName] = category;
+    const createdChannels = {};
 
     for (
-      const [channelName, type]
-      of channelList
+      const [categoryName, channelList]
+      of Object.entries(STRUCTURE)
     ) {
+      let category =
+        guild.channels.cache.find(
+          channel =>
+            channel.type ===
+              ChannelType.GuildCategory &&
+            channel.name === categoryName
+        );
 
-      const channel =
-        await guild.channels.create({
-          name: channelName,
-          type: ChannelType.GuildText,
-          parent: category.id,
-          reason: 'Complete server reset'
-        });
+      if (!category) {
+        category =
+          await guild.channels.create({
+            name: categoryName,
+            type: ChannelType.GuildCategory,
+            reason: 'Complete server reset'
+          });
+      }
 
-      channels[type] = channel;
-    }
-  }
+      createdChannels[
+        categoryName
+      ] = category;
 
-  /* =================================================
-     LOCK INFORMATION CHANNELS
-  ================================================= */
+      for (
+        const [channelName, key]
+        of channelList
+      ) {
+        let channel =
+          guild.channels.cache.find(
+            c =>
+              c.type ===
+                ChannelType.GuildText &&
+              c.name === channelName &&
+              c.parentId === category.id
+          );
 
-  const lockedChannels = [
-    'rules',
-    'announcements',
-    'info',
-    'roles',
-    'boosts',
-    'partnerships',
-    'levels',
-    'starboard',
-    'confessions',
-    'support'
-  ];
-
-  for (const type of lockedChannels) {
-
-    const channel = channels[type];
-
-    if (!channel) continue;
-
-    try {
-
-      await channel.permissionOverwrites.edit(
-        guild.roles.everyone,
-        {
-          SendMessages: false
+        if (!channel) {
+          channel =
+            await guild.channels.create({
+              name: channelName,
+              type: ChannelType.GuildText,
+              parent: category.id,
+              reason: 'Complete server reset'
+            });
         }
-      );
 
-    } catch {}
+        createdChannels[key] = channel;
+      }
+    }
+
+    /* =========================
+       READ ONLY CHANNELS
+    ========================= */
+
+    const readOnly = [
+      'welcome',
+      'goodbye',
+      'rules',
+      'announcements',
+      'info',
+      'roles',
+      'boosts',
+      'partnerships',
+      'levels',
+      'starboard',
+      'confessions',
+      'support'
+    ];
+
+    for (const key of readOnly) {
+      const channel =
+        createdChannels[key];
+
+      if (!channel) continue;
+
+      await channel.permissionOverwrites
+        .edit(
+          guild.roles.everyone,
+          {
+            SendMessages: false
+          }
+        )
+        .catch(() => {});
+    }
+
+    /* =========================
+       WELCOME
+    ========================= */
+
+    await createdChannels.welcome.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ welcome ♡'
+          )
+          .setDescription(
+            'welcome to the server!\n\n' +
+            'please read **#୨୧・rules** first, ' +
+            'then grab some roles in **#୨୧・roles**.\n\n' +
+            'introduce yourself and come hang out with everyone ♡'
+          )
+          .setFooter({
+            text: '୨୧ glad to have you here!'
+          })
+      ]
+    });
+
+    /* =========================
+       GOODBYE
+    ========================= */
+
+    await createdChannels.goodbye.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ goodbye ♡'
+          )
+          .setDescription(
+            'when someone leaves, their goodbye message will appear here.'
+          )
+      ]
+    });
+
+    /* =========================
+       RULES
+    ========================= */
+
+    await createdChannels.rules.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ server rules'
+          )
+          .setDescription(
+            '**01** be respectful ♡\n' +
+            '**02** no harassment or bullying\n' +
+            '**03** no spam or flooding\n' +
+            '**04** no NSFW content\n' +
+            '**05** no slurs or hateful behavior\n' +
+            '**06** no advertising without permission\n' +
+            '**07** listen to staff\n' +
+            '**08** use channels correctly\n\n' +
+            'breaking the rules may result in a warning, timeout, kick, or ban.'
+          )
+          .setFooter({
+            text: '୨୧ enjoy your stay!'
+          })
+      ]
+    });
+
+    /* =========================
+       SERVER INFO
+    ========================= */
+
+    await createdChannels.info.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ server info'
+          )
+          .setDescription(
+            `welcome to **${guild.name}** ♡\n\n` +
+            'read the rules before chatting.\n' +
+            'choose your roles.\n' +
+            'introduce yourself.\n' +
+            'meet everyone and have fun!\n\n' +
+            '**community**\n' +
+            'chat • media • memes • suggestions\n\n' +
+            '**extras**\n' +
+            'levels • starboard • confessions • support'
+          )
+      ]
+    });
+
+    /* =========================
+       ROLE PANEL
+    ========================= */
+
+    const roleRows = [
+
+      new ActionRowBuilder().addComponents(
+        selfRoleButton(
+          '୨୧・she/her',
+          '♡'
+        ),
+        selfRoleButton(
+          '୨୧・he/him',
+          '♡'
+        ),
+        selfRoleButton(
+          '୨୧・they/them',
+          '♡'
+        )
+      ),
+
+      new ActionRowBuilder().addComponents(
+        selfRoleButton(
+          '୨୧・minor',
+          '🌷'
+        )
+      ),
+
+      new ActionRowBuilder().addComponents(
+        selfRoleButton(
+          '୨୧・gamer',
+          '🎮'
+        ),
+        selfRoleButton(
+          '୨୧・artist',
+          '🎨'
+        ),
+        selfRoleButton(
+          '୨୧・music',
+          '🎵'
+        ),
+        selfRoleButton(
+          '୨୧・anime',
+          '🎀'
+        ),
+        selfRoleButton(
+          '୨୧・creator',
+          '✨'
+        )
+      ),
+
+      new ActionRowBuilder().addComponents(
+        selfRoleButton(
+          '୨୧・social',
+          '💬'
+        ),
+        selfRoleButton(
+          '୨୧・introvert',
+          '🌙'
+        ),
+        selfRoleButton(
+          '୨୧・extrovert',
+          '☀️'
+        ),
+        selfRoleButton(
+          '୨୧・active',
+          '⭐'
+        )
+      ),
+
+      new ActionRowBuilder().addComponents(
+        selfRoleButton(
+          '୨୧・announcements',
+          '📢'
+        ),
+        selfRoleButton(
+          '୨୧・events',
+          '🎉'
+        ),
+        selfRoleButton(
+          '୨୧・giveaways',
+          '🎁'
+        ),
+        selfRoleButton(
+          '୨୧・vc',
+          '🎙️'
+        )
+      )
+    ];
+
+    await createdChannels.roles.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ choose your roles'
+          )
+          .setDescription(
+            'pick whatever fits you ♡\n\n' +
+            '**♡ PRONOUNS**\n' +
+            'choose your pronouns.\n\n' +
+            '**🌷 AGE**\n' +
+            'choose your age group.\n\n' +
+            '**🎀 INTERESTS**\n' +
+            'show what you like.\n\n' +
+            '**🌸 VIBES**\n' +
+            'show your personality.\n\n' +
+            '**📢 NOTIFICATIONS**\n' +
+            'choose what you want pings for.\n\n' +
+            'click a button again to remove a role.'
+          )
+          .setFooter({
+            text: '୨୧ choose what represents you ♡'
+          })
+      ],
+      components: roleRows
+    });
+
+    /* =========================
+       INTRODUCTIONS
+    ========================= */
+
+    await createdChannels.introductions.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ introduce yourself'
+          )
+          .setDescription(
+            'new here? say hi to everyone ♡\n\n' +
+            '・ name / nickname\n' +
+            '・ pronouns\n' +
+            '・ hobbies\n' +
+            '・ favorite music\n' +
+            '・ favorite games\n' +
+            '・ favorite shows\n' +
+            '・ anything else!'
+          )
+      ]
+    });
+
+    /* =========================
+       ANNOUNCEMENTS
+    ========================= */
+
+    await createdChannels.announcements.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ announcements'
+          )
+          .setDescription(
+            'important server announcements will appear here ♡'
+          )
+      ]
+    });
+
+    /* =========================
+       BOOSTS
+    ========================= */
+
+    await createdChannels.boosts.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ server boosts'
+          )
+          .setDescription(
+            'thank you to everyone who boosts the server! ♡\n\n' +
+            'boosters receive special recognition and perks.'
+          )
+      ]
+    });
+
+    /* =========================
+       PARTNERSHIPS
+    ========================= */
+
+    await createdChannels.partnerships.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ partnerships'
+          )
+          .setDescription(
+            'want to partner with us? ♡\n\n' +
+            'click the button below to submit an application.'
+          )
+      ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(
+              'open_partnership'
+            )
+            .setLabel(
+              'apply for partnership'
+            )
+            .setEmoji('💜')
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+        )
+      ]
+    });
+
+    /* =========================
+       SUGGESTIONS
+    ========================= */
+
+    await createdChannels.suggestions.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ suggestions'
+          )
+          .setDescription(
+            'have an idea for the server? ♡\n\n' +
+            'click below to submit it.'
+          )
+      ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(
+              'open_suggestion'
+            )
+            .setLabel(
+              'make a suggestion'
+            )
+            .setEmoji('💡')
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+        )
+      ]
+    });
+
+    /* =========================
+       CONFESSIONS
+    ========================= */
+
+    await createdChannels.confessions.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ confessions'
+          )
+          .setDescription(
+            'say something anonymously ♡\n\n' +
+            'click below to send a confession.'
+          )
+      ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(
+              'open_confession'
+            )
+            .setLabel(
+              'send a confession'
+            )
+            .setEmoji('💌')
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+        )
+      ]
+    });
+
+    /* =========================
+       SUPPORT
+    ========================= */
+
+    await createdChannels.support.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ support'
+          )
+          .setDescription(
+            'need help with something? ♡\n\n' +
+            'open a private ticket and staff will help you.'
+          )
+      ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(
+              'open_support'
+            )
+            .setLabel(
+              'open support ticket'
+            )
+            .setEmoji('🎫')
+            .setStyle(
+              ButtonStyle.Secondary
+            )
+        )
+      ]
+    });
+
+    /* =========================
+       SAVE CHANNELS
+    ========================= */
+
+    data.channels = {
+      welcome:
+        createdChannels.welcome?.id,
+
+      goodbye:
+        createdChannels.goodbye?.id,
+
+      levels:
+        createdChannels.levels?.id,
+
+      starboard:
+        createdChannels.starboard?.id,
+
+      ticketCategory:
+        createdChannels[
+          '004・TICKETS'
+        ]?.id
+    };
+
+    saveData();
+
+    console.log(
+      '✅ SERVER RESET COMPLETE'
+    );
+
+    return createdChannels;
+
+  } finally {
+    resetting = false;
   }
-
-  /* =================================================
-     RULES
-  ================================================= */
-
-  await channels.rules.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ rules')
-        .setDescription(
-          '**01** be respectful ♡\n' +
-          '**02** no harassment or bullying\n' +
-          '**03** no spam or flooding\n' +
-          '**04** no NSFW content\n' +
-          '**05** no slurs or hateful behavior\n' +
-          '**06** no unwanted advertising\n' +
-          '**07** listen to staff\n' +
-          '**08** use channels correctly\n\n' +
-          'breaking the rules may result in a warning, timeout, kick, or ban.'
-        )
-        .setFooter({
-          text: '୨୧ enjoy your stay!'
-        })
-    ]
-  });
-
-  /* =================================================
-     SERVER INFO
-  ================================================= */
-
-  await channels.info.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ server info')
-        .setDescription(
-          `welcome to **${guild.name}** ♡\n\n` +
-          'read the rules before chatting.\n' +
-          'choose your roles in the roles channel.\n' +
-          'introduce yourself and meet everyone!\n\n' +
-          '**community**\n' +
-          'chat • media • memes • suggestions\n\n' +
-          '**extras**\n' +
-          'levels • starboard • confessions • support'
-        )
-    ]
-  });
-
-  /* =================================================
-     ROLE MENU
-  ================================================= */
-
-  const roleRows = [
-
-    new ActionRowBuilder().addComponents(
-      makeRoleButton('୨୧・she/her', '♡'),
-      makeRoleButton('୨୧・he/him', '♡'),
-      makeRoleButton('୨୧・they/them', '♡'),
-      makeRoleButton('୨୧・any pronouns', '♡')
-    ),
-
-    new ActionRowBuilder().addComponents(
-      makeRoleButton('୨୧・artist', '🎨'),
-      makeRoleButton('୨୧・gamer', '🎮'),
-      makeRoleButton('୨୧・music', '🎵'),
-      makeRoleButton('୨୧・anime', '🎀')
-    ),
-
-    new ActionRowBuilder().addComponents(
-      makeRoleButton('୨୧・social', '💬'),
-      makeRoleButton('୨୧・introvert', '🌙'),
-      makeRoleButton('୨୧・extrovert', '☀️'),
-      makeRoleButton('୨୧・editor', '✂️')
-    ),
-
-    new ActionRowBuilder().addComponents(
-      makeRoleButton('୨୧・content creator', '📸'),
-      makeRoleButton('୨୧・streamer', '🎥')
-    )
-  ];
-
-  await channels.roles.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ choose your roles')
-        .setDescription(
-          'click a button to get a role ♡\n' +
-          'click it again to remove it.\n\n' +
-          '╭・**PRONOUNS**\n' +
-          '┊ choose what you want people to call you\n' +
-          '╰・♡\n\n' +
-
-          '╭・**INTERESTS**\n' +
-          '┊ show what you are into\n' +
-          '╰・🎀\n\n' +
-
-          '╭・**VIBES**\n' +
-          '┊ show your social style\n' +
-          '╰・🌸\n\n' +
-
-          '╭・**CREATOR**\n' +
-          '┊ let people know what you create\n' +
-          '╰・✨'
-        )
-        .setFooter({
-          text: '୨୧ roles are completely optional'
-        })
-    ],
-    components: roleRows
-  });
-
-  /* =================================================
-     INTRODUCTIONS
-  ================================================= */
-
-  await channels.introductions.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ introduce yourself')
-        .setDescription(
-          'new here? say hiiii ♡\n\n' +
-          '・ nickname\n' +
-          '・ pronouns\n' +
-          '・ hobbies\n' +
-          '・ favorite games\n' +
-          '・ favorite music\n' +
-          '・ favorite shows\n' +
-          '・ anything else you want to share!'
-        )
-    ]
-  });
-
-  /* =================================================
-     ANNOUNCEMENTS
-  ================================================= */
-
-  await channels.announcements.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ announcements')
-        .setDescription(
-          'server announcements will appear here ♡'
-        )
-    ]
-  });
-
-  /* =================================================
-     BOOSTS
-  ================================================= */
-
-  await channels.boosts.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ server boosts')
-        .setDescription(
-          'thank you to everyone who boosts the server! ♡\n\n' +
-          'boosters may receive special perks and recognition.'
-        )
-    ]
-  });
-
-  /* =================================================
-     PARTNERSHIPS
-  ================================================= */
-
-  const partnershipRow =
-    new ActionRowBuilder().addComponents(
-
-      new ButtonBuilder()
-        .setCustomId('open_partnership')
-        .setLabel('apply for partnership')
-        .setEmoji('💜')
-        .setStyle(ButtonStyle.Secondary)
-
-    );
-
-  await channels.partnerships.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ partnerships')
-        .setDescription(
-          'want to partner with us? ♡\n\n' +
-          'click below to open a private application.'
-        )
-    ],
-    components: [partnershipRow]
-  });
-
-  /* =================================================
-     SUGGESTIONS
-  ================================================= */
-
-  const suggestionRow =
-    new ActionRowBuilder().addComponents(
-
-      new ButtonBuilder()
-        .setCustomId('open_suggestion')
-        .setLabel('make a suggestion')
-        .setEmoji('💡')
-        .setStyle(ButtonStyle.Secondary)
-
-    );
-
-  await channels.suggestions.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ suggestions')
-        .setDescription(
-          'have an idea for the server? ♡\n\n' +
-          'click below to submit one.'
-        )
-    ],
-    components: [suggestionRow]
-  });
-
-  /* =================================================
-     CONFESSIONS
-  ================================================= */
-
-  const confessionRow =
-    new ActionRowBuilder().addComponents(
-
-      new ButtonBuilder()
-        .setCustomId('open_confession')
-        .setLabel('send a confession')
-        .setEmoji('💌')
-        .setStyle(ButtonStyle.Secondary)
-
-    );
-
-  await channels.confessions.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ confessions')
-        .setDescription(
-          'say something anonymously ♡\n\n' +
-          'click below to send a confession.'
-        )
-    ],
-    components: [confessionRow]
-  });
-
-  /* =================================================
-     SUPPORT
-  ================================================= */
-
-  const supportRow =
-    new ActionRowBuilder().addComponents(
-
-      new ButtonBuilder()
-        .setCustomId('open_support')
-        .setLabel('open support ticket')
-        .setEmoji('🎫')
-        .setStyle(ButtonStyle.Secondary)
-
-    );
-
-  await channels.support.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0xffb6d9)
-        .setTitle('୨୧・ support')
-        .setDescription(
-          'need help with something? ♡\n\n' +
-          'open a private ticket and staff will help you.'
-        )
-    ],
-    components: [supportRow]
-  });
-
-  /* =================================================
-     SAVE CHANNEL IDS
-  ================================================= */
-
-  data.channels = {
-    levels: channels.levels?.id || null,
-    starboard: channels.starboard?.id || null,
-    ticketCategory:
-      channels['004・TICKETS']?.id || null
-  };
-
-  saveData();
-
-  console.log('✅ Server rebuild complete.');
-
-  return channels;
 }
 
-/* =====================================================
+/* =========================
    COMMANDS
-===================================================== */
+========================= */
 
 const commands = [
 
@@ -769,19 +1051,27 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('coinflip')
-    .setDescription('Flip a coin'),
+    .setDescription(
+      'Flip a coin'
+    ),
 
   new SlashCommandBuilder()
     .setName('roll')
-    .setDescription('Roll a dice'),
+    .setDescription(
+      'Roll a dice'
+    ),
 
   new SlashCommandBuilder()
     .setName('8ball')
-    .setDescription('Ask the magic 8ball')
+    .setDescription(
+      'Ask the magic 8ball'
+    )
     .addStringOption(option =>
       option
         .setName('question')
-        .setDescription('Your question')
+        .setDescription(
+          'Your question'
+        )
         .setRequired(true)
     ),
 
@@ -793,7 +1083,9 @@ const commands = [
     .addStringOption(option =>
       option
         .setName('choice')
-        .setDescription('Your choice')
+        .setDescription(
+          'Your choice'
+        )
         .setRequired(true)
         .addChoices(
           {
@@ -820,12 +1112,14 @@ const commands = [
   new SlashCommandBuilder()
     .setName('trivia')
     .setDescription(
-      'Get a random trivia question'
+      'Get random trivia'
     ),
 
   new SlashCommandBuilder()
     .setName('rank')
-    .setDescription('See your level'),
+    .setDescription(
+      'See your level'
+    ),
 
   new SlashCommandBuilder()
     .setName('leaderboard')
@@ -847,7 +1141,9 @@ const commands = [
     .addStringOption(option =>
       option
         .setName('bio')
-        .setDescription('Your bio')
+        .setDescription(
+          'Your bio'
+        )
         .setRequired(true)
     ),
 
@@ -859,7 +1155,9 @@ const commands = [
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('User')
+        .setDescription(
+          'User'
+        )
         .setRequired(true)
     ),
 
@@ -877,13 +1175,17 @@ const commands = [
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('Member')
+        .setDescription(
+          'Member'
+        )
         .setRequired(true)
     )
     .addStringOption(option =>
       option
         .setName('reason')
-        .setDescription('Reason')
+        .setDescription(
+          'Reason'
+        )
     ),
 
   new SlashCommandBuilder()
@@ -894,13 +1196,17 @@ const commands = [
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('Member')
+        .setDescription(
+          'Member'
+        )
         .setRequired(true)
     )
     .addStringOption(option =>
       option
         .setName('reason')
-        .setDescription('Reason')
+        .setDescription(
+          'Reason'
+        )
     ),
 
   new SlashCommandBuilder()
@@ -911,14 +1217,16 @@ const commands = [
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('Member')
+        .setDescription(
+          'Member'
+        )
         .setRequired(true)
     )
     .addIntegerOption(option =>
       option
         .setName('minutes')
         .setDescription(
-          'Timeout length'
+          '1-40320 minutes'
         )
         .setMinValue(1)
         .setMaxValue(40320)
@@ -927,7 +1235,9 @@ const commands = [
     .addStringOption(option =>
       option
         .setName('reason')
-        .setDescription('Reason')
+        .setDescription(
+          'Reason'
+        )
     ),
 
   new SlashCommandBuilder()
@@ -938,13 +1248,17 @@ const commands = [
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('Member')
+        .setDescription(
+          'Member'
+        )
         .setRequired(true)
     )
     .addStringOption(option =>
       option
         .setName('reason')
-        .setDescription('Reason')
+        .setDescription(
+          'Reason'
+        )
         .setRequired(true)
     ),
 
@@ -956,7 +1270,9 @@ const commands = [
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('Member')
+        .setDescription(
+          'Member'
+        )
         .setRequired(true)
     ),
 
@@ -969,7 +1285,7 @@ const commands = [
       option
         .setName('amount')
         .setDescription(
-          '1-100 messages'
+          '1-100'
         )
         .setMinValue(1)
         .setMaxValue(100)
@@ -989,41 +1305,36 @@ const commands = [
     )
 ];
 
-/* =====================================================
+/* =========================
    READY
-===================================================== */
+========================= */
 
 client.once('ready', async () => {
-
   console.log(
     `✅ Logged in as ${client.user.tag}`
   );
 
   try {
-
     await client.application.commands.set(
-      commands.map(command =>
-        command.toJSON()
+      commands.map(
+        command => command.toJSON()
       )
     );
 
     console.log(
       '✅ Slash commands registered.'
     );
-
   } catch (err) {
-
     console.error(
       '❌ Command registration error:',
       err
     );
-
   }
 });
 
-/* =====================================================
+/* =========================
    INTERACTIONS
-===================================================== */
+========================= */
 
 client.on(
   'interactionCreate',
@@ -1031,9 +1342,9 @@ client.on(
 
     try {
 
-      /* =================================================
+      /* =====================
          SELF ROLES
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isButton() &&
@@ -1061,13 +1372,11 @@ client.on(
           );
 
         if (!role) {
-
           return interaction.reply({
             content:
               '❌ That role does not exist.',
             ephemeral: true
           });
-
         }
 
         if (
@@ -1085,7 +1394,6 @@ client.on(
               `♡ Removed **${role.name}**`,
             ephemeral: true
           });
-
         }
 
         await interaction.member.roles.add(
@@ -1099,9 +1407,9 @@ client.on(
         });
       }
 
-      /* =================================================
+      /* =====================
          SUPPORT TICKET
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isButton() &&
@@ -1115,13 +1423,11 @@ client.on(
           );
 
         if (!category) {
-
           return interaction.reply({
             content:
               '❌ Ticket category is missing.',
             ephemeral: true
           });
-
         }
 
         const existing =
@@ -1132,13 +1438,11 @@ client.on(
           );
 
         if (existing) {
-
           return interaction.reply({
             content:
               `🎫 You already have a ticket: ${existing}`,
             ephemeral: true
           });
-
         }
 
         const overwrites = [
@@ -1155,7 +1459,8 @@ client.on(
           },
 
           {
-            id: interaction.user.id,
+            id:
+              interaction.user.id,
 
             allow: [
               PermissionsBitField.Flags
@@ -1179,7 +1484,6 @@ client.on(
         ) {
 
           overwrites.push({
-
             id: role.id,
 
             allow: [
@@ -1192,14 +1496,11 @@ client.on(
               PermissionsBitField.Flags
                 .ReadMessageHistory
             ]
-
           });
-
         }
 
         const ticket =
           await interaction.guild.channels.create({
-
             name:
               `ticket-${interaction.user.id}`,
 
@@ -1211,33 +1512,29 @@ client.on(
 
             permissionOverwrites:
               overwrites
-
           });
 
         const closeRow =
-          new ActionRowBuilder().addComponents(
-
-            new ButtonBuilder()
-              .setCustomId(
-                'close_ticket'
-              )
-              .setLabel(
-                'close ticket'
-              )
-              .setEmoji('🔒')
-              .setStyle(
-                ButtonStyle.Danger
-              )
-
-          );
+          new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(
+                  'close_ticket'
+                )
+                .setLabel(
+                  'close ticket'
+                )
+                .setEmoji('🔒')
+                .setStyle(
+                  ButtonStyle.Danger
+                )
+            );
 
         await ticket.send({
-
           content:
             `${interaction.user}`,
 
           embeds: [
-
             new EmbedBuilder()
               .setColor(0xffb6d9)
               .setTitle(
@@ -1247,28 +1544,23 @@ client.on(
                 'tell staff what you need help with ♡\n\n' +
                 'please be patient while someone responds.'
               )
-
           ],
 
           components: [
             closeRow
           ]
-
         });
 
         return interaction.reply({
-
           content:
             `🎫 Your ticket has been created: ${ticket}`,
-
           ephemeral: true
-
         });
       }
 
-      /* =================================================
+      /* =====================
          CLOSE TICKET
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isButton() &&
@@ -1281,16 +1573,11 @@ client.on(
             interaction.member
           )
         ) {
-
           return interaction.reply({
-
             content:
               '❌ Only staff can close tickets.',
-
             ephemeral: true
-
           });
-
         }
 
         await interaction.reply(
@@ -1298,19 +1585,17 @@ client.on(
         );
 
         setTimeout(() => {
-
           interaction.channel
             .delete()
             .catch(() => {});
-
         }, 1500);
 
         return;
       }
 
-      /* =================================================
+      /* =====================
          PARTNERSHIP BUTTON
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isButton() &&
@@ -1361,22 +1646,14 @@ client.on(
             .setRequired(true);
 
         modal.addComponents(
+          new ActionRowBuilder()
+            .addComponents(server),
 
           new ActionRowBuilder()
-            .addComponents(
-              server
-            ),
+            .addComponents(members),
 
           new ActionRowBuilder()
-            .addComponents(
-              members
-            ),
-
-          new ActionRowBuilder()
-            .addComponents(
-              invite
-            )
-
+            .addComponents(invite)
         );
 
         return interaction.showModal(
@@ -1384,9 +1661,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          PARTNERSHIP MODAL
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isModalSubmit() &&
@@ -1400,18 +1677,30 @@ client.on(
           );
 
         if (!category) {
-
           return interaction.reply({
             content:
               '❌ Ticket category is missing.',
             ephemeral: true
           });
+        }
 
+        const existing =
+          interaction.guild.channels.cache.find(
+            channel =>
+              channel.name ===
+              `partner-${interaction.user.id}`
+          );
+
+        if (existing) {
+          return interaction.reply({
+            content:
+              `💜 You already have an application: ${existing}`,
+            ephemeral: true
+          });
         }
 
         const channel =
           await interaction.guild.channels.create({
-
             name:
               `partner-${interaction.user.id}`,
 
@@ -1453,7 +1742,6 @@ client.on(
               ...getStaffRoles(
                 interaction.guild
               ).map(role => ({
-
                 id: role.id,
 
                 allow: [
@@ -1466,24 +1754,19 @@ client.on(
                   PermissionsBitField.Flags
                     .ReadMessageHistory
                 ]
-
               }))
 
             ]
-
           });
 
         await channel.send({
-
           embeds: [
-
             new EmbedBuilder()
               .setColor(0xffb6d9)
               .setTitle(
                 '୨୧・ partnership application'
               )
               .setDescription(
-
                 `**Server:** ${
                   interaction.fields
                     .getTextInputValue(
@@ -1505,29 +1788,21 @@ client.on(
                     )
                 }\n\n` +
 
-                `**Applicant:** ${
-                  interaction.user
-                }`
-
+                `**Applicant:** ${interaction.user}`
               )
-
           ]
-
         });
 
         return interaction.reply({
-
           content:
             `💜 Application created: ${channel}`,
-
           ephemeral: true
-
         });
       }
 
-      /* =================================================
+      /* =====================
          CONFESSION BUTTON
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isButton() &&
@@ -1560,9 +1835,7 @@ client.on(
 
         modal.addComponents(
           new ActionRowBuilder()
-            .addComponents(
-              input
-            )
+            .addComponents(input)
         );
 
         return interaction.showModal(
@@ -1570,9 +1843,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          SUGGESTION BUTTON
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isButton() &&
@@ -1605,9 +1878,7 @@ client.on(
 
         modal.addComponents(
           new ActionRowBuilder()
-            .addComponents(
-              input
-            )
+            .addComponents(input)
         );
 
         return interaction.showModal(
@@ -1615,9 +1886,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          CONFESSION MODAL
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isModalSubmit() &&
@@ -1634,9 +1905,7 @@ client.on(
         if (channel) {
 
           await channel.send({
-
             embeds: [
-
               new EmbedBuilder()
                 .setColor(0xffb6d9)
                 .setTitle(
@@ -1648,26 +1917,20 @@ client.on(
                       'confession'
                     )
                 )
-
             ]
-
           });
-
         }
 
         return interaction.reply({
-
           content:
             '💌 Your confession was sent anonymously.',
-
           ephemeral: true
-
         });
       }
 
-      /* =================================================
+      /* =====================
          SUGGESTION MODAL
-      ================================================= */
+      ===================== */
 
       if (
         interaction.isModalSubmit() &&
@@ -1685,9 +1948,7 @@ client.on(
 
           const message =
             await channel.send({
-
               embeds: [
-
                 new EmbedBuilder()
                   .setColor(0xffb6d9)
                   .setTitle(
@@ -1703,29 +1964,23 @@ client.on(
                     text:
                       `suggested by ${interaction.user.tag}`
                   })
-
               ]
-
             });
 
           await message.react('👍');
           await message.react('👎');
-
         }
 
         return interaction.reply({
-
           content:
             '💡 Suggestion submitted!',
-
           ephemeral: true
-
         });
       }
 
-      /* =================================================
+      /* =====================
          SLASH COMMANDS
-      ================================================= */
+      ===================== */
 
       if (
         !interaction.isChatInputCommand()
@@ -1736,9 +1991,9 @@ client.on(
       const command =
         interaction.commandName;
 
-      /* =================================================
-         RESET SERVER
-      ================================================= */
+      /* =====================
+         RESET
+      ===================== */
 
       if (
         command ===
@@ -1750,36 +2005,59 @@ client.on(
             interaction.member
           )
         ) {
-
           return interaction.reply({
-
             content:
               '❌ Only the server owner can use this.',
-
             ephemeral: true
-
           });
+        }
 
+        if (resetting) {
+          return interaction.reply({
+            content:
+              '⏳ A reset is already running.',
+            ephemeral: true
+          });
         }
 
         await interaction.deferReply({
           ephemeral: true
         });
 
-        await resetServer(
-          interaction.guild
-        );
+        try {
 
-        await interaction.editReply(
-          '✅ Server completely rebuilt!'
-        );
+          await resetServer(
+            interaction.guild
+          );
+
+          await interaction.editReply(
+            '✅ **Server completely rebuilt!**\n\n' +
+            '♡ Channels recreated\n' +
+            '♡ Roles recreated\n' +
+            '♡ Welcome/goodbye system enabled\n' +
+            '♡ Role menu created\n' +
+            '♡ Panels recreated\n' +
+            '♡ Permissions configured'
+          );
+
+        } catch (err) {
+
+          console.error(
+            'RESET ERROR:',
+            err
+          );
+
+          await interaction.editReply(
+            '❌ Reset failed. Check Railway logs.'
+          );
+        }
 
         return;
       }
 
-      /* =================================================
+      /* =====================
          COINFLIP
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -1787,17 +2065,15 @@ client.on(
       ) {
 
         return interaction.reply(
-
           Math.random() < 0.5
             ? '🪙 **Heads!**'
             : '🪙 **Tails!**'
-
         );
       }
 
-      /* =================================================
+      /* =====================
          ROLL
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -1813,9 +2089,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          8BALL
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -1823,7 +2099,6 @@ client.on(
       ) {
 
         const answers = [
-
           'yes ♡',
           'no 😭',
           'probably',
@@ -1831,11 +2106,9 @@ client.on(
           'absolutely',
           'ask again later',
           'i have no idea 💀'
-
         ];
 
         return interaction.reply(
-
           `🎱 ${
             answers[
               Math.floor(
@@ -1844,13 +2117,12 @@ client.on(
               )
             ]
           }`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          RPS
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -1888,28 +2160,24 @@ client.on(
             'tie 😭';
 
         } else if (
-
           (
             userChoice ===
-            'rock' &&
+              'rock' &&
             botChoice ===
-            'scissors'
+              'scissors'
           ) ||
-
           (
             userChoice ===
-            'paper' &&
+              'paper' &&
             botChoice ===
-            'rock'
+              'rock'
           ) ||
-
           (
             userChoice ===
-            'scissors' &&
+              'scissors' &&
             botChoice ===
-            'paper'
+              'paper'
           )
-
         ) {
 
           result =
@@ -1919,21 +2187,18 @@ client.on(
 
           result =
             'i win 😼';
-
         }
 
         return interaction.reply(
-
           `🪨📄✂️ You chose **${userChoice}**.\n` +
           `I chose **${botChoice}**.\n\n` +
           `**${result}**`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          WOULD YOU RATHER
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -1941,21 +2206,14 @@ client.on(
       ) {
 
         const questions = [
-
           'Would you rather be able to fly or become invisible?',
-
           'Would you rather have unlimited money or unlimited free time?',
-
-          'Would you rather live in the city or the countryside?',
-
-          'Would you rather never use TikTok again or never use Discord again?',
-
-          'Would you rather always be 10 minutes late or 20 minutes early?'
-
+          'Would you rather live in the city or countryside?',
+          'Would you rather always be 10 minutes late or 20 minutes early?',
+          'Would you rather never use Discord again or never use TikTok again?'
         ];
 
         return interaction.reply(
-
           `🤔 **Would you rather...**\n\n${
             questions[
               Math.floor(
@@ -1964,13 +2222,12 @@ client.on(
               )
             ]
           }`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          TRIVIA
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -1978,27 +2235,22 @@ client.on(
       ) {
 
         const trivia = [
-
           [
             'What planet is known as the Red Planet?',
             'Mars'
           ],
-
           [
             'How many continents are there?',
             '7'
           ],
-
           [
             'What is the largest ocean?',
             'Pacific Ocean'
           ],
-
           [
             'What animal is known as the king of the jungle?',
             'Lion'
           ]
-
         ];
 
         const question =
@@ -2010,16 +2262,14 @@ client.on(
           ];
 
         return interaction.reply(
-
           `🧠 **Trivia:** ${question[0]}\n\n` +
           `Answer: ||${question[1]}||`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          RANK
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2040,17 +2290,15 @@ client.on(
           xp % 100;
 
         return interaction.reply(
-
           `⭐ **${interaction.user.username}**\n\n` +
           `Level: **${level}**\n` +
           `XP: **${progress}/100**`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          LEADERBOARD
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2061,11 +2309,11 @@ client.on(
           Object.entries(
             data.xp
           )
-            .sort(
-              (a, b) =>
-                b[1] - a[1]
-            )
-            .slice(0, 10);
+          .sort(
+            (a, b) =>
+              b[1] - a[1]
+          )
+          .slice(0, 10);
 
         let text = '';
 
@@ -2093,9 +2341,7 @@ client.on(
         }
 
         return interaction.reply({
-
           embeds: [
-
             new EmbedBuilder()
               .setColor(0xffb6d9)
               .setTitle(
@@ -2105,15 +2351,13 @@ client.on(
                 text ||
                 'Nobody has XP yet!'
               )
-
           ]
-
         });
       }
 
-      /* =================================================
+      /* =====================
          PROFILE
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2137,30 +2381,24 @@ client.on(
           'No bio set.';
 
         return interaction.reply({
-
           embeds: [
-
             new EmbedBuilder()
               .setColor(0xffb6d9)
               .setTitle(
                 `୨୧・ ${interaction.user.username}`
               )
               .setDescription(
-
                 `**Bio**\n${bio}\n\n` +
                 `⭐ **Level:** ${level}\n` +
                 `✨ **XP:** ${xp}`
-
               )
-
           ]
-
         });
       }
 
-      /* =================================================
+      /* =====================
          SET BIO
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2180,18 +2418,15 @@ client.on(
         saveData();
 
         return interaction.reply({
-
           content:
             '♡ Bio updated!',
-
           ephemeral: true
-
         });
       }
 
-      /* =================================================
+      /* =====================
          FRIEND
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2209,11 +2444,9 @@ client.on(
             interaction.user.id
           ]
         ) {
-
           data.friends[
             interaction.user.id
           ] = [];
-
         }
 
         if (
@@ -2229,21 +2462,18 @@ client.on(
           ].push(
             user.id
           );
-
         }
 
         saveData();
 
         return interaction.reply(
-
           `🫶 **${user.username}** was added to your friends!`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          FRIENDS
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2260,7 +2490,7 @@ client.on(
         ) {
 
           return interaction.reply(
-            'You don\'t have any friends added yet 😭'
+            'You do not have any friends added yet 😭'
           );
         }
 
@@ -2276,15 +2506,13 @@ client.on(
             .filter(Boolean);
 
         return interaction.reply(
-
           `🫶 **Your friends:**\n${names.join('\n')}`
-
         );
       }
 
-      /* =================================================
-         MODERATION PERMISSION
-      ================================================= */
+      /* =====================
+         MODERATION CHECK
+      ===================== */
 
       if (
         [
@@ -2294,7 +2522,9 @@ client.on(
           'warn',
           'warnings',
           'clear'
-        ].includes(command)
+        ].includes(
+          command
+        )
       ) {
 
         if (
@@ -2304,20 +2534,16 @@ client.on(
         ) {
 
           return interaction.reply({
-
             content:
               '❌ You need a staff role to use this.',
-
             ephemeral: true
-
           });
-
         }
       }
 
-      /* =================================================
+      /* =====================
          BAN
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2331,14 +2557,10 @@ client.on(
         ) {
 
           return interaction.reply({
-
             content:
               '❌ Only the owner can ban members.',
-
             ephemeral: true
-
           });
-
         }
 
         const user =
@@ -2357,28 +2579,39 @@ client.on(
         const member =
           await interaction.guild
             .members
-            .fetch(user.id)
+            .fetch(
+              user.id
+            )
             .catch(
               () => null
             );
 
         if (
           member &&
-          !canModerate(
+          member.id ===
+            interaction.guild.ownerId
+        ) {
+
+          return interaction.reply({
+            content:
+              '❌ You cannot ban the server owner.',
+            ephemeral: true
+          });
+        }
+
+        if (
+          member &&
+          !canModerateTarget(
             interaction.member,
             member
           )
         ) {
 
           return interaction.reply({
-
             content:
               '❌ You cannot ban this member.',
-
             ephemeral: true
-
           });
-
         }
 
         await interaction.guild
@@ -2395,9 +2628,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          KICK
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2413,7 +2646,9 @@ client.on(
         const member =
           await interaction.guild
             .members
-            .fetch(user.id)
+            .fetch(
+              user.id
+            )
             .catch(
               () => null
             );
@@ -2421,42 +2656,32 @@ client.on(
         if (!member) {
 
           return interaction.reply({
-
             content:
               '❌ Member not found.',
-
             ephemeral: true
-
           });
-
         }
 
         if (
-          !canModerate(
+          !canModerateTarget(
             interaction.member,
             member
           )
         ) {
 
           return interaction.reply({
-
             content:
-              '❌ You cannot moderate this member.',
-
+              '❌ You cannot kick this member.',
             ephemeral: true
-
           });
-
         }
 
         await member.kick(
-
           interaction.options
             .getString(
               'reason'
             ) ||
           'No reason provided'
-
         );
 
         return interaction.reply(
@@ -2464,9 +2689,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          TIMEOUT
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2488,7 +2713,9 @@ client.on(
         const member =
           await interaction.guild
             .members
-            .fetch(user.id)
+            .fetch(
+              user.id
+            )
             .catch(
               () => null
             );
@@ -2496,58 +2723,43 @@ client.on(
         if (!member) {
 
           return interaction.reply({
-
             content:
               '❌ Member not found.',
-
             ephemeral: true
-
           });
-
         }
 
         if (
-          !canModerate(
+          !canModerateTarget(
             interaction.member,
             member
           )
         ) {
 
           return interaction.reply({
-
             content:
               '❌ You cannot timeout this member.',
-
             ephemeral: true
-
           });
-
         }
 
         await member.timeout(
-
-          minutes *
-          60 *
-          1000,
-
+          minutes * 60 * 1000,
           interaction.options
             .getString(
               'reason'
             ) ||
           'No reason provided'
-
         );
 
         return interaction.reply(
-
           `⏰ Timed out **${user.tag}** for **${minutes} minutes**.`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          WARN
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2569,28 +2781,26 @@ client.on(
         const member =
           await interaction.guild
             .members
-            .fetch(user.id)
+            .fetch(
+              user.id
+            )
             .catch(
               () => null
             );
 
         if (
           member &&
-          !canModerate(
+          !canModerateTarget(
             interaction.member,
             member
           )
         ) {
 
           return interaction.reply({
-
             content:
               '❌ You cannot warn this member.',
-
             ephemeral: true
-
           });
-
         }
 
         if (
@@ -2598,39 +2808,31 @@ client.on(
             user.id
           ]
         ) {
-
           data.warnings[
             user.id
           ] = [];
-
         }
 
         data.warnings[
           user.id
         ].push({
-
           reason,
-
           moderator:
             interaction.user.id,
-
           date:
             Date.now()
-
         });
 
         saveData();
 
         return interaction.reply(
-
           `⚠️ Warned **${user.tag}**\nReason: ${reason}`
-
         );
       }
 
-      /* =================================================
+      /* =====================
          WARNINGS
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2653,9 +2855,7 @@ client.on(
         ) {
 
           return interaction.reply(
-
             `✅ **${user.tag}** has no warnings.`
-
           );
         }
 
@@ -2668,9 +2868,7 @@ client.on(
             .join('\n');
 
         return interaction.reply({
-
           embeds: [
-
             new EmbedBuilder()
               .setColor(0xffb6d9)
               .setTitle(
@@ -2679,15 +2877,13 @@ client.on(
               .setDescription(
                 text
               )
-
           ]
-
         });
       }
 
-      /* =================================================
+      /* =====================
          CLEAR
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2707,18 +2903,15 @@ client.on(
           );
 
         return interaction.reply({
-
           content:
             `🧹 Deleted **${amount} messages**.`,
-
           ephemeral: true
-
         });
       }
 
-      /* =================================================
+      /* =====================
          CONFESS COMMAND
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2750,9 +2943,7 @@ client.on(
 
         modal.addComponents(
           new ActionRowBuilder()
-            .addComponents(
-              input
-            )
+            .addComponents(input)
         );
 
         return interaction.showModal(
@@ -2760,9 +2951,9 @@ client.on(
         );
       }
 
-      /* =================================================
+      /* =====================
          SUGGEST COMMAND
-      ================================================= */
+      ===================== */
 
       if (
         command ===
@@ -2794,9 +2985,7 @@ client.on(
 
         modal.addComponents(
           new ActionRowBuilder()
-            .addComponents(
-              input
-            )
+            .addComponents(input)
         );
 
         return interaction.showModal(
@@ -2816,31 +3005,30 @@ client.on(
         interaction.deferred
       ) {
 
-        await interaction
-          .editReply({
-            content:
-              '❌ Something went wrong.'
-          })
-          .catch(() => {});
+        await interaction.editReply({
+          content:
+            '❌ Something went wrong.'
+        }).catch(
+          () => {}
+        );
 
       } else {
 
-        await interaction
-          .reply({
-            content:
-              '❌ Something went wrong.',
-            ephemeral: true
-          })
-          .catch(() => {});
-
+        await interaction.reply({
+          content:
+            '❌ Something went wrong.',
+          ephemeral: true
+        }).catch(
+          () => {}
+        );
       }
     }
   }
 );
 
-/* =====================================================
+/* =========================
    XP SYSTEM
-===================================================== */
+========================= */
 
 const xpCooldown =
   new Map();
@@ -2876,33 +3064,34 @@ client.on(
       now
     );
 
-    const oldXP =
-      data.xp[
-        message.author.id
-      ] || 0;
-
-    const gained =
-      Math.floor(
-        Math.random() * 11
-      ) + 10;
-
-    const newXP =
-      oldXP + gained;
-
     data.xp[
       message.author.id
-    ] = newXP;
+    ] =
+      (
+        data.xp[
+          message.author.id
+        ] || 0
+      ) +
+      Math.floor(
+        Math.random() * 11
+      ) +
+      10;
 
     saveData();
 
+    const xp =
+      data.xp[
+        message.author.id
+      ];
+
     const oldLevel =
       Math.floor(
-        oldXP / 100
+        (xp - 10) / 100
       ) + 1;
 
     const newLevel =
       Math.floor(
-        newXP / 100
+        xp / 100
       ) + 1;
 
     if (
@@ -2910,70 +3099,111 @@ client.on(
       oldLevel
     ) {
 
-      const levelChannel =
+      const channel =
         getChannel(
           message.guild,
           '୨୧・levels'
         );
 
-      if (levelChannel) {
+      if (channel) {
 
-        await levelChannel.send(
+        await channel.send(
           `🎉 ${message.author} reached **Level ${newLevel}**! ♡`
         );
-
-      }
-
-      const activeRole =
-        getRole(
-          message.guild,
-          '⭐・active'
-        );
-
-      if (
-        activeRole &&
-        newLevel >= 5 &&
-        !message.member.roles.cache.has(
-          activeRole.id
-        )
-      ) {
-
-        await message.member.roles
-          .add(activeRole)
-          .catch(() => {});
-
       }
     }
   }
 );
 
-/* =====================================================
-   WELCOME
-===================================================== */
+/* =========================
+   WELCOME SYSTEM
+========================= */
 
 client.on(
   'guildMemberAdd',
   async member => {
 
-    const channel =
+    const welcome =
       getChannel(
         member.guild,
-        '୨୧・introductions'
+        '୨୧・welcome'
       );
 
-    if (channel) {
+    if (welcome) {
 
-      await channel.send(
-        `🌸 Welcome ${member} to **${member.guild.name}**! ♡`
+      await welcome.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xffb6d9)
+            .setTitle(
+              '୨୧・ new member ♡'
+            )
+            .setDescription(
+              `welcome ${member}!\n\n` +
+              `you are member **#${member.guild.memberCount}** of **${member.guild.name}** ♡\n\n` +
+              'make sure to read the rules and grab your roles!'
+            )
+            .setThumbnail(
+              member.user.displayAvatarURL({
+                size: 256
+              })
+            )
+            .setFooter({
+              text:
+                '୨୧ welcome to the community!'
+            })
+        ]
+      }).catch(
+        () => {}
       );
-
     }
   }
 );
 
-/* =====================================================
-   BOOST
-===================================================== */
+/* =========================
+   GOODBYE SYSTEM
+========================= */
+
+client.on(
+  'guildMemberRemove',
+  async member => {
+
+    const goodbye =
+      getChannel(
+        member.guild,
+        '୨୧・goodbye'
+      );
+
+    if (!goodbye) {
+      return;
+    }
+
+    await goodbye.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb6d9)
+          .setTitle(
+            '୨୧・ goodbye ♡'
+          )
+          .setDescription(
+            `**${member.user.tag}** has left the server.\n\n` +
+            'we hope to see you again someday ♡'
+          )
+          .setThumbnail(
+            member.user.displayAvatarURL({
+              size: 256
+            })
+          )
+      ]
+    }).catch(
+      () => {}
+    );
+  }
+);
+
+/* =========================
+   BOOST SYSTEM
+========================= */
 
 client.on(
   'guildMemberUpdate',
@@ -2997,8 +3227,9 @@ client.on(
 
         await newMember.roles
           .add(booster)
-          .catch(() => {});
-
+          .catch(
+            () => {}
+          );
       }
 
       const channel =
@@ -3011,8 +3242,9 @@ client.on(
 
         await channel.send(
           `🌸 ${newMember} just boosted the server! Thank you ♡`
+        ).catch(
+          () => {}
         );
-
       }
     }
 
@@ -3031,15 +3263,16 @@ client.on(
 
         await newMember.roles
           .remove(booster)
-          .catch(() => {});
-
+          .catch(
+            () => {}
+          );
       }
     }
   }
 );
 
-/* =====================================================
+/* =========================
    LOGIN
-===================================================== */
+========================= */
 
 client.login(TOKEN);
