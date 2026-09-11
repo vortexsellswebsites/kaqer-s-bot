@@ -1,5 +1,5 @@
 // ==========================================
-// Kaqer Community Bot
+// KAQER COMMUNITY BOT
 // Discord.js v14
 // ==========================================
 
@@ -64,15 +64,12 @@ const client = new Client({
 // ==========================================
 
 const SELF_ROLES = {
-
-  // pronouns
   role_she: "she/her",
   role_he: "he/him",
   role_they: "they/them",
   role_any: "any pronouns",
   role_ask: "ask",
 
-  // interests
   role_gaming: "Gaming",
   role_music: "Music",
   role_art: "Art",
@@ -82,7 +79,6 @@ const SELF_ROLES = {
   role_reading: "Reading",
   role_photo: "Photography",
 
-  // vibes
   role_cute: "Cute",
   role_soft: "Soft",
   role_chill: "Chill",
@@ -91,7 +87,6 @@ const SELF_ROLES = {
   role_quiet: "Quiet",
   role_funny: "Funny",
 
-  // notifications
   role_announcements: "Announcements",
   role_events: "Events",
   role_giveaways: "Giveaways",
@@ -99,16 +94,12 @@ const SELF_ROLES = {
 };
 
 // ==========================================
-// COMMANDS
-// ONLY FUN + CHANNEL COMMANDS
+// ONLY THESE COMMANDS EXIST
 // ==========================================
 
 const commands = [
 
-  // ========================================
   // FUN
-  // ========================================
-
   new SlashCommandBuilder()
     .setName("coinflip")
     .setDescription("flip a coin"),
@@ -155,10 +146,7 @@ const commands = [
     .setName("trivia")
     .setDescription("get a random trivia question"),
 
-  // ========================================
-  // CHANNEL STUFF
-  // ========================================
-
+  // CHANNEL COMMANDS
   new SlashCommandBuilder()
     .setName("suggest")
     .setDescription("send a suggestion")
@@ -232,43 +220,82 @@ client.once("clientReady", async () => {
     }
 
     // ======================================
-    // CLEAR OLD GLOBAL COMMANDS
+    // FORCE DELETE GLOBAL COMMANDS
     // ======================================
 
-    try {
+    console.log("🗑️ Deleting ALL global commands...");
 
-      await client.application.commands.set([]);
+    const globalCommands =
+      await client.application.commands.fetch();
+
+    for (const command of globalCommands.values()) {
 
       console.log(
-        "🗑️ Old global commands cleared."
+        `🗑️ Deleting global: /${command.name}`
       );
 
-    } catch (error) {
-
-      console.error(
-        "⚠️ Could not clear global commands:"
-      );
-
-      console.error(error);
+      await client.application.commands
+        .delete(command.id)
+        .catch(() => {});
 
     }
 
     // ======================================
-    // REPLACE ALL COMMANDS IN THIS SERVER
+    // FORCE DELETE SERVER COMMANDS
     // ======================================
+
+    console.log("🗑️ Deleting ALL server commands...");
+
+    const guildCommands =
+      await guild.commands.fetch();
+
+    for (const command of guildCommands.values()) {
+
+      console.log(
+        `🗑️ Deleting server: /${command.name}`
+      );
+
+      await guild.commands
+        .delete(command.id)
+        .catch(() => {});
+
+    }
+
+    // ======================================
+    // WAIT A SECOND
+    // ======================================
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 1000)
+    );
+
+    // ======================================
+    // REGISTER ONLY OUR COMMANDS
+    // ======================================
+
+    console.log("📥 Registering new commands...");
 
     await guild.commands.set(commands);
 
     console.log(
-      `✅ Registered ${commands.length} commands in ${guild.name}`
+      `✅ Registered ${commands.length} commands`
     );
 
-    console.log(
-      "🎮 Commands: coinflip, 8ball, rps, wouldyourather, trivia, suggest, confess, ticket, partner"
-    );
+    console.log("");
+    console.log("🎮 CURRENT COMMANDS:");
+    console.log("/coinflip");
+    console.log("/8ball");
+    console.log("/rps");
+    console.log("/wouldyourather");
+    console.log("/trivia");
+    console.log("/suggest");
+    console.log("/confess");
+    console.log("/ticket");
+    console.log("/partner");
+    console.log("");
 
     // ======================================
-    // BOT STATUS
+    // STATUS
     // ======================================
 
     client.user.setActivity(
@@ -281,7 +308,7 @@ client.once("clientReady", async () => {
   } catch (error) {
 
     console.error(
-      "❌ Command registration error:"
+      "❌ COMMAND SETUP ERROR:"
     );
 
     console.error(error);
@@ -296,11 +323,13 @@ client.once("clientReady", async () => {
 
 client.on("guildMemberAdd", async member => {
 
-  const channel =
-    findChannel(member.guild, [
+  const channel = findChannel(
+    member.guild,
+    [
       "welcome",
       "୨୧・welcome"
-    ]);
+    ]
+  );
 
   if (!channel) return;
 
@@ -329,11 +358,13 @@ client.on("guildMemberAdd", async member => {
 
 client.on("guildMemberRemove", async member => {
 
-  const channel =
-    findChannel(member.guild, [
+  const channel = findChannel(
+    member.guild,
+    [
       "goodbye",
       "୨୧・goodbye"
-    ]);
+    ]
+  );
 
   if (!channel) return;
 
@@ -364,21 +395,18 @@ client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
 
-  const userId =
-    message.author.id;
+  const id = message.author.id;
 
-  if (xpCooldown.has(userId)) return;
+  if (xpCooldown.has(id)) return;
 
-  xpCooldown.add(userId);
+  xpCooldown.add(id);
 
-  xp[userId] =
-    (xp[userId] || 0) +
+  xp[id] =
+    (xp[id] || 0) +
     Math.floor(Math.random() * 8) + 5;
 
   setTimeout(() => {
-
-    xpCooldown.delete(userId);
-
+    xpCooldown.delete(id);
   }, 60000);
 
 });
@@ -414,7 +442,7 @@ client.on("interactionCreate", async interaction => {
 
           return interaction.reply({
             content:
-              "❌ that role button doesn't work anymore.",
+              "❌ that role doesn't exist anymore.",
             ephemeral: true
           });
 
@@ -440,12 +468,7 @@ client.on("interactionCreate", async interaction => {
             interaction.user.id
           );
 
-        // ==================================
-        // PRONOUNS
-        // ONLY ONE PRONOUN ROLE
-        // ==================================
-
-        const pronounIds = [
+        const pronouns = [
           "role_she",
           "role_he",
           "role_they",
@@ -454,19 +477,19 @@ client.on("interactionCreate", async interaction => {
         ];
 
         if (
-          pronounIds.includes(
+          pronouns.includes(
             interaction.customId
           )
         ) {
 
-          for (const id of pronounIds) {
+          for (const id of pronouns) {
 
-            const otherName =
+            const name =
               SELF_ROLES[id];
 
             const otherRole =
               interaction.guild.roles.cache.find(
-                r => r.name === otherName
+                r => r.name === name
               );
 
             if (
@@ -487,16 +510,11 @@ client.on("interactionCreate", async interaction => {
 
         }
 
-        // ==================================
-        // TOGGLE ROLE
-        // ==================================
-
         if (
           member.roles.cache.has(role.id)
         ) {
 
-          await member.roles
-            .remove(role);
+          await member.roles.remove(role);
 
           return interaction.reply({
             content:
@@ -582,7 +600,6 @@ client.on("interactionCreate", async interaction => {
         );
 
       const answers = [
-
         "yes ♡",
         "no 💔",
         "maybe...",
@@ -595,14 +612,12 @@ client.on("interactionCreate", async interaction => {
         "i wouldn't count on it",
         "100% 😭",
         "nahhh 💀"
-
       ];
 
       const answer =
         answers[
           Math.floor(
-            Math.random() *
-            answers.length
+            Math.random() * answers.length
           )
         ];
 
@@ -646,8 +661,7 @@ client.on("interactionCreate", async interaction => {
       const bot =
         choices[
           Math.floor(
-            Math.random() *
-            choices.length
+            Math.random() * choices.length
           )
         ];
 
@@ -717,11 +731,9 @@ client.on("interactionCreate", async interaction => {
 
         "would you rather have your dream car or dream house?",
 
-        "would you rather be able to teleport or time travel?",
+        "would you rather teleport or time travel?",
 
-        "would you rather have unlimited V-Bucks or unlimited Robux?",
-
-        "would you rather never sleep or never eat?"
+        "would you rather have unlimited V-Bucks or unlimited Robux?"
 
       ];
 
@@ -778,18 +790,8 @@ client.on("interactionCreate", async interaction => {
         },
 
         {
-          q: "how many days are in a leap year?",
-          a: "366"
-        },
-
-        {
           q: "what is the largest ocean?",
           a: "Pacific Ocean"
-        },
-
-        {
-          q: "what animal is known as the king of the jungle?",
-          a: "Lion"
         }
 
       ];
@@ -820,7 +822,7 @@ client.on("interactionCreate", async interaction => {
     }
 
     // ======================================
-    // SUGGESTION
+    // SUGGEST
     // ======================================
 
     if (command === "suggest") {
@@ -861,15 +863,15 @@ client.on("interactionCreate", async interaction => {
           })
           .setTimestamp();
 
-      const sent =
+      const msg =
         await channel.send({
           embeds: [embed]
         });
 
-      await sent.react("👍")
+      await msg.react("👍")
         .catch(() => {});
 
-      await sent.react("👎")
+      await msg.react("👎")
         .catch(() => {});
 
       return interaction.reply({
@@ -881,7 +883,7 @@ client.on("interactionCreate", async interaction => {
     }
 
     // ======================================
-    // CONFESSION
+    // CONFESS
     // ======================================
 
     if (command === "confess") {
@@ -910,15 +912,16 @@ client.on("interactionCreate", async interaction => {
 
       }
 
-      const confessionNumber =
-        Date.now()
-          .toString()
-          .slice(-6);
+      const number =
+        Math.floor(
+          100000 +
+          Math.random() * 900000
+        );
 
       const embed =
         new EmbedBuilder()
           .setTitle(
-            `♡ anonymous confession #${confessionNumber}`
+            `♡ anonymous confession #${number}`
           )
           .setDescription(
             message
@@ -1020,7 +1023,7 @@ client.on("interactionCreate", async interaction => {
 
         });
 
-      const closeButton =
+      const close =
         new ButtonBuilder()
           .setCustomId(
             "close_ticket"
@@ -1035,9 +1038,7 @@ client.on("interactionCreate", async interaction => {
 
       const row =
         new ActionRowBuilder()
-          .addComponents(
-            closeButton
-          );
+          .addComponents(close);
 
       await channel.send({
 
@@ -1045,9 +1046,7 @@ client.on("interactionCreate", async interaction => {
           `${interaction.user} ♡ welcome to your ticket!\n\n` +
           `tell us what you need help with.`,
 
-        components: [
-          row
-        ]
+        components: [row]
 
       });
 
@@ -1063,7 +1062,7 @@ client.on("interactionCreate", async interaction => {
     }
 
     // ======================================
-    // PARTNERSHIP
+    // PARTNER
     // ======================================
 
     if (command === "partner") {
@@ -1103,23 +1102,19 @@ client.on("interactionCreate", async interaction => {
             "🤝 partnership application"
           )
           .addFields(
-
             {
               name: "server",
               value: server
             },
-
             {
               name: "invite",
               value: invite
             },
-
             {
               name: "applicant",
               value:
                 `${interaction.user}`
             }
-
           )
           .setTimestamp();
 
@@ -1128,12 +1123,9 @@ client.on("interactionCreate", async interaction => {
       });
 
       return interaction.reply({
-
         content:
           "♡ your partnership application was sent!",
-
         ephemeral: true
-
       });
 
     }
@@ -1176,39 +1168,33 @@ client.on("interactionCreate", async interaction => {
 });
 
 // ==========================================
-// ERROR HANDLERS
+// ERRORS
 // ==========================================
 
 client.on("error", error => {
-
   console.error(
     "❌ Discord client error:",
     error
   );
-
 });
 
 process.on(
   "unhandledRejection",
   error => {
-
     console.error(
       "❌ Unhandled rejection:",
       error
     );
-
   }
 );
 
 process.on(
   "uncaughtException",
   error => {
-
     console.error(
       "❌ Uncaught exception:",
       error
     );
-
   }
 );
 
