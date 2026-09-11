@@ -7,7 +7,8 @@ const {
   ChannelType,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  AttachmentBuilder
 }=require("discord.js");
 const fs=require("fs");
 const path=require("path");
@@ -20,39 +21,60 @@ const client=new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions
   ]
 });
 
 const DATA=path.join(__dirname,"data");
 if(!fs.existsSync(DATA)) fs.mkdirSync(DATA);
 
-const load=(name,def)=>{
-  const p=path.join(DATA,name);
-  try{return JSON.parse(fs.readFileSync(p,"utf8"))}
-  catch{fs.writeFileSync(p,JSON.stringify(def,null,2));return def}
-};
+function load(name,def){
+  const file=path.join(DATA,name);
+  try{return JSON.parse(fs.readFileSync(file,"utf8"))}
+  catch{
+    fs.writeFileSync(file,JSON.stringify(def,null,2));
+    return def;
+  }
+}
 
-const save=(name,data)=>{
+function save(name,data){
   fs.writeFileSync(path.join(DATA,name),JSON.stringify(data,null,2));
-};
+}
 
 const profiles=load("profiles.json",{});
 const warnings=load("warnings.json",{});
 const settings=load("settings.json",{});
+const confessions=load("confessions.json",{});
+const starboard=load("starboard.json",{});
 
-const ROLE_DATA=[
+const SELF_ROLES=[
+  ["୨୧・woman",0xff9acb],
+  ["୨୧・man",0x6fa8dc],
+  ["୨୧・they/them",0xb39ddb],
+  ["୨୧・she/her",0xffb6c1],
+  ["୨୧・he/him",0x87ceeb],
+  ["୨୧・minor",0x77dd77],
+  ["୨୧・adult",0xffd166],
+  ["୨୧・single",0x9b59b6],
+  ["୨୧・taken",0xe75480],
+  ["୨୧・spectator",0x95a5a6],
+  ["୨୧・participant",0x3498db]
+];
+
+const STAFF_ROLES=[
   ["Member",0xffffff],
-  ["🤝 Friend",0x57d68d],
   ["🌸 Booster",0xff8fc7],
-  ["💎 VIP",0x55bfff],
-  ["🌱 Level 5",0x77dd77],
-  ["✨ Level 10",0xffd166],
-  ["💫 Level 20",0x9b59b6],
-  ["💎 Level 30",0x55bfff],
   ["🔨 Staff",0x9b59b6],
   ["🛡️ Moderator",0x5865f2],
   ["👑 Owner",0xff69b4]
+];
+
+const LEVEL_ROLES=[
+  ["୨୧・level 5",0x77dd77],
+  ["୨୧・level 10",0xffd166],
+  ["୨୧・level 20",0x9b59b6],
+  ["୨୧・level 30",0x55bfff]
 ];
 
 const CHANNELS={
@@ -77,58 +99,7 @@ const CHANNELS={
   ]
 };
 
-const text={
-  "୨୧・rules":{
-    title:"୨୧ 𝓡𝓾𝓵𝓮𝓼",
-    description:
-`♡ Be respectful to everyone.
-♡ No harassment, hate, or bullying.
-♡ No spam or message flooding.
-♡ No inappropriate or illegal content.
-♡ No unwanted advertising.
-♡ Don't abuse bots or exploits.
-♡ Keep arguments out of public chat.
-♡ Listen to staff instructions.
-♡ Have fun and make friends.
-
-╭──────────────୨୧
-Please follow Discord's Terms of Service and Community Guidelines.
-╰──────────────୨୧`
-  },
-  "୨୧・announcements":{
-    title:"୨୧ 𝓐𝓷𝓷𝓸𝓾𝓷𝓬𝓮𝓶𝓮𝓷𝓽𝓼",
-    description:"♡ Important server updates will be posted here.\n\nOnly staff can send messages in this channel."
-  },
-  "୨୧・roles":{
-    title:"୨୧ 𝓡𝓸𝓵𝓮𝓼",
-    description:
-`♡ **🤝 Friend** — community role
-♡ **🌸 Booster** — automatically given when you boost
-♡ **💎 VIP** — special supporter role
-♡ **🌱 Level 5** — level reward
-♡ **✨ Level 10** — level reward
-♡ **💫 Level 20** — level reward
-♡ **💎 Level 30** — level reward
-
-More roles can be added later.`
-  },
-  "୨୧・levels":{
-    title:"୨୧ 𝓛𝓮𝓿𝓮𝓵𝓼",
-    description:
-`♡ Chat in the server to earn XP.
-♡ XP has a cooldown to prevent spam.
-♡ Level-ups are announced here.
-♡ Higher levels unlock reward roles.
-
-**Commands**
-\`/rank\` — your level
-\`/leaderboard\` — top members`
-  },
-  "୨୧・starboard":{
-    title:"୨୧ 𝓢𝓽𝓪𝓻𝓫𝓸𝓪𝓻𝓭",
-    description:"⭐ Messages that receive enough ⭐ reactions will automatically be featured here."
-  }
-};
+const allRoleData=[...STAFF_ROLES,...SELF_ROLES,...LEVEL_ROLES];
 
 function profile(id){
   if(!profiles[id]){
@@ -147,51 +118,51 @@ function needed(level){
   return 100+(level*50);
 }
 
-function owner(member){
+function isOwner(member){
   return member.guild.ownerId===member.id;
 }
 
-function staff(member){
-  return owner(member)||
+function isStaff(member){
+  return isOwner(member)||
     member.roles.cache.some(r=>["🔨 Staff","🛡️ Moderator"].includes(r.name));
 }
 
-function moderator(member){
-  return owner(member)||
+function isModerator(member){
+  return isOwner(member)||
     member.roles.cache.some(r=>["🔨 Staff","🛡️ Moderator"].includes(r.name));
-}
-
-async function getChannel(guild,name){
-  return guild.channels.cache.find(
-    c=>c.name===name&&c.type===ChannelType.GuildText
-  );
 }
 
 async function getRole(guild,name){
   return guild.roles.cache.find(r=>r.name===name);
 }
 
-async function setupRoles(guild){
-  const result={};
+async function getChannel(guild,name){
+  return guild.channels.cache.find(
+    c=>c.type===ChannelType.GuildText&&c.name===name
+  );
+}
 
-  for(const [name,color] of ROLE_DATA){
+async function createRoles(guild){
+  const roles={};
+
+  for(const [name,color] of allRoleData){
     let role=await getRole(guild,name);
 
     if(!role){
       role=await guild.roles.create({
         name,
         color,
-        reason:"Server setup"
+        reason:"Community server setup"
       });
     }
 
-    result[name]=role;
+    roles[name]=role;
   }
 
-  return result;
+  return roles;
 }
 
-async function lock(channel){
+async function lockChannel(channel){
   await channel.permissionOverwrites.edit(
     channel.guild.roles.everyone,
     {
@@ -203,7 +174,7 @@ async function lock(channel){
   ).catch(()=>{});
 }
 
-async function unlock(channel){
+async function unlockChannel(channel){
   await channel.permissionOverwrites.edit(
     channel.guild.roles.everyone,
     {
@@ -230,7 +201,7 @@ async function createCategory(guild,name){
   return category;
 }
 
-async function createChannel(guild,category,name,isLocked){
+async function createChannel(guild,category,name,locked){
   let channel=guild.channels.cache.find(
     c=>c.type===ChannelType.GuildText&&
       c.name===name&&
@@ -245,22 +216,22 @@ async function createChannel(guild,category,name,isLocked){
     });
   }
 
-  if(isLocked) await lock(channel);
-  else await unlock(channel);
+  if(locked) await lockChannel(channel);
+  else await unlockChannel(channel);
 
   return channel;
 }
 
-async function sendPanel(channel,data){
+async function sendPanel(channel,title,description){
   const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
 
-  if(messages&&messages.some(m=>m.author.id===client.user.id)) return;
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
 
   await channel.send({
     embeds:[
       new EmbedBuilder()
-        .setTitle(data.title)
-        .setDescription(data.description)
+        .setTitle(title)
+        .setDescription(description)
         .setTimestamp()
     ]
   }).catch(()=>{});
@@ -278,15 +249,15 @@ async function updateBoostPanel(guild){
   const old=messages?.find(m=>m.author.id===client.user.id);
 
   const embed=new EmbedBuilder()
-    .setTitle("୨୧ 𝓢𝓮𝓻𝓿𝓮𝓻 𝓑𝓸𝓸𝓼𝓽𝓼")
+    .setTitle("୨୧・boosts")
     .setDescription(
 `╭──────────────୨୧
-**♡ Boosts:** ${boosts}
-**♡ Server Level:** ${tier}
-**♡ Boosters:** ${boosters}
+**Boosts:** ${boosts}
+**Server Level:** ${tier}
+**Boosters:** ${boosters}
 ╰──────────────୨୧
 
-Thank you to everyone supporting the server. ♡`
+Thank you to everyone supporting the server.`
     )
     .setTimestamp();
 
@@ -296,103 +267,320 @@ Thank you to everyone supporting the server. ♡`
 
 async function updateLevelRoles(member){
   const p=profile(member.id);
-  const rewards=[
-    [5,"🌱 Level 5"],
-    [10,"✨ Level 10"],
-    [20,"💫 Level 20"],
-    [30,"💎 Level 30"]
-  ];
 
-  for(const [level,name] of rewards){
+  for(const [level,name] of LEVEL_ROLES){
     const role=await getRole(member.guild,name);
     if(!role) continue;
 
-    if(p.level>=level&&!member.roles.cache.has(role.id))
-      await member.roles.add(role).catch(()=>{});
+    if(p.level>=parseInt(level.split(" ")[1])){
+      if(!member.roles.cache.has(role.id))
+        await member.roles.add(role).catch(()=>{});
+    }
   }
 }
 
-async function resetServer(guild){
-  const oldChannels=[...guild.channels.cache.values()];
+async function sendRolePanel(channel){
+  const messages=await channel.messages.fetch({limit:50}).catch(()=>null);
 
-  for(const channel of oldChannels){
+  if(messages?.some(m=>m.author.id===client.user.id&&m.components.length)) return;
+
+  const rows=[];
+
+  for(let i=0;i<SELF_ROLES.length;i+=5){
+    const row=new ActionRowBuilder();
+
+    for(const [name] of SELF_ROLES.slice(i,i+5)){
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`selfrole:${name}`)
+          .setLabel(name)
+          .setStyle(ButtonStyle.Secondary)
+      );
+    }
+
+    rows.push(row);
+  }
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・roles")
+        .setDescription(
+`Choose the roles you want.
+
+Click a role to add it.
+Click it again to remove it.
+
+**Gender**
+୨୧・woman
+୨୧・man
+
+**Pronouns**
+୨୧・they/them
+୨୧・she/her
+୨୧・he/him
+
+**Age**
+୨୧・minor
+୨୧・adult
+
+**Relationship**
+୨୧・single
+୨୧・taken
+
+**Server**
+୨୧・spectator
+୨୧・participant`
+        )
+    ],
+    components:rows
+  }).catch(()=>{});
+}
+
+async function sendGamePanel(channel){
+  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
+
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・games")
+        .setDescription(
+`Have fun with the server.
+
+**Commands**
+\`/coinflip\`
+\`/roll\`
+\`/8ball\`
+\`/rps\`
+\`/wouldyourather\`
+\`/trivia\``
+        )
+    ]
+  }).catch(()=>{});
+}
+
+async function sendBotPanel(channel){
+  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
+
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・bots")
+        .setDescription(
+`Use the bot commands here.
+
+**Community**
+\`/profile\`
+\`/setbio\`
+\`/rank\`
+\`/leaderboard\`
+\`/friend\`
+\`/friends\`
+
+**Games**
+\`/coinflip\`
+\`/roll\`
+\`/8ball\`
+\`/rps\`
+\`/wouldyourather\`
+\`/trivia\`
+
+**Other**
+\`/confess\`
+
+Staff commands are only available to staff.`
+        )
+    ]
+  }).catch(()=>{});
+}
+
+async function sendLevelPanel(channel){
+  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
+
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・levels")
+        .setDescription(
+`Chat to earn XP.
+
+Every message can give XP, with a cooldown to prevent spam.
+
+Use:
+\`/rank\`
+\`/leaderboard\`
+
+Level rewards:
+**୨୧・level 5**
+**୨୧・level 10**
+**୨୧・level 20**
+**୨୧・level 30**`
+        )
+    ]
+  }).catch(()=>{});
+}
+
+async function sendStarboardPanel(channel){
+  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
+
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・starboard")
+        .setDescription("Messages that receive **3 or more ⭐ reactions** will be featured here.")
+    ]
+  }).catch(()=>{});
+}
+
+async function sendConfessionPanel(channel){
+  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
+
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
+
+  const row=new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("confess")
+      .setLabel("Send Confession")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・confessions")
+        .setDescription("Send an anonymous confession by pressing the button below.")
+    ],
+    components:[row]
+  }).catch(()=>{});
+}
+
+async function sendSupportPanel(channel){
+  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
+
+  if(messages?.some(m=>m.author.id===client.user.id)) return;
+
+  const row=new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("support")
+      .setLabel("Create Support Ticket")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channel.send({
+    embeds:[
+      new EmbedBuilder()
+        .setTitle("୨୧・support")
+        .setDescription("Need help? Create a private support ticket.")
+    ],
+    components:[row]
+  }).catch(()=>{});
+}
+
+async function resetServer(guild){
+  const channels=[...guild.channels.cache.values()];
+
+  for(const channel of channels){
     await channel.delete("Server reset").catch(()=>{});
   }
 
-  const roles=await setupRoles(guild);
+  await createRoles(guild);
 
   for(const categoryName of Object.keys(CHANNELS)){
     const category=await createCategory(guild,categoryName);
 
-    for(const [name,isLocked] of CHANNELS[categoryName]){
+    for(const [name,locked] of CHANNELS[categoryName]){
       const channel=await createChannel(
         guild,
         category,
         name,
-        isLocked
+        locked
       );
 
-      if(text[name])
-        await sendPanel(channel,text[name]);
+      if(name==="୨୧・rules"){
+        await sendPanel(
+          channel,
+          "୨୧・rules",
+`Please follow the rules.
+
+1. Be respectful.
+2. No harassment or bullying.
+3. No spam.
+4. No inappropriate content.
+5. No unwanted advertising.
+6. Don't abuse bots.
+7. Listen to staff.
+8. Follow Discord's Terms of Service and Community Guidelines.`
+        );
+      }
+
+      if(name==="୨୧・announcements"){
+        await sendPanel(
+          channel,
+          "୨୧・announcements",
+          "Important server updates will be posted here."
+        );
+      }
+
+      if(name==="୨୧・roles"){
+        await sendRolePanel(channel);
+      }
+
+      if(name==="୨୧・games"){
+        await sendGamePanel(channel);
+      }
+
+      if(name==="୨୧・bots"){
+        await sendBotPanel(channel);
+      }
+
+      if(name==="୨୧・levels"){
+        await sendLevelPanel(channel);
+      }
+
+      if(name==="୨୧・starboard"){
+        await sendStarboardPanel(channel);
+      }
+
+      if(name==="୨୧・confessions"){
+        await sendConfessionPanel(channel);
+      }
+
+      if(name==="୨୧・support"){
+        await sendSupportPanel(channel);
+      }
     }
   }
 
-  await updateBoostPanel(guild);
-
-  const roleChannel=await getChannel(guild,"୨୧・roles");
-
-  if(roleChannel){
-    const row=new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("friend_role")
-        .setLabel("🤝 Friend")
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId("vip_role")
-        .setLabel("💎 VIP")
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    await roleChannel.send({
-      content:"♡ **Choose your community roles**",
-      components:[row]
-    }).catch(()=>{});
-  }
-
-  const support=await getChannel(guild,"୨୧・support");
-
-  if(support){
-    const row=new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("support")
-        .setLabel("🎫 Create Support Ticket")
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    await support.send({
-      embeds:[
-        new EmbedBuilder()
-          .setTitle("୨୧ 𝓢𝓾𝓹𝓹𝓸𝓻𝓽")
-          .setDescription("Need help? Press the button below to create a private support channel.")
-      ],
-      components:[row]
-    }).catch(()=>{});
-  }
+  const rules=await getChannel(guild,"୨୧・rules");
+  const announcements=await getChannel(guild,"୨୧・announcements");
+  const roles=await getChannel(guild,"୨୧・roles");
+  const levels=await getChannel(guild,"୨୧・levels");
+  const star=await getChannel(guild,"୨୧・starboard");
+  const boosts=await getChannel(guild,"୨୧・boosts");
 
   settings[guild.id]={
-    setup:true,
-    levelChannel:(await getChannel(guild,"୨୧・levels"))?.id,
-    boostChannel:(await getChannel(guild,"୨୧・boosts"))?.id,
-    starboardChannel:(await getChannel(guild,"୨୧・starboard"))?.id
+    levelChannel:levels?.id,
+    starboardChannel:star?.id,
+    boostChannel:boosts?.id
   };
 
   save("settings.json",settings);
+
+  await updateBoostPanel(guild);
 }
 
 const commands=[
   new SlashCommandBuilder()
     .setName("resetserver")
-    .setDescription("Delete the current layout and build the new server"),
+    .setDescription("Rebuild the entire server"),
 
   new SlashCommandBuilder()
     .setName("rank")
@@ -400,7 +588,7 @@ const commands=[
 
   new SlashCommandBuilder()
     .setName("leaderboard")
-    .setDescription("View the server XP leaderboard"),
+    .setDescription("View the XP leaderboard"),
 
   new SlashCommandBuilder()
     .setName("profile")
@@ -415,7 +603,7 @@ const commands=[
     .setDescription("Set your profile bio")
     .addStringOption(o=>
       o.setName("text")
-       .setDescription("Your bio")
+       .setDescription("Bio")
        .setRequired(true)
     ),
 
@@ -433,12 +621,52 @@ const commands=[
     .setDescription("View your friends"),
 
   new SlashCommandBuilder()
-    .setName("icebreaker")
-    .setDescription("Get an icebreaker"),
+    .setName("coinflip")
+    .setDescription("Flip a coin"),
 
   new SlashCommandBuilder()
-    .setName("question")
-    .setDescription("Get a random question"),
+    .setName("roll")
+    .setDescription("Roll a dice"),
+
+  new SlashCommandBuilder()
+    .setName("8ball")
+    .setDescription("Ask the magic 8ball")
+    .addStringOption(o=>
+      o.setName("question")
+       .setDescription("Question")
+       .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("rps")
+    .setDescription("Play rock paper scissors")
+    .addStringOption(o=>
+      o.setName("choice")
+       .setDescription("Your choice")
+       .setRequired(true)
+       .addChoices(
+         {name:"rock",value:"rock"},
+         {name:"paper",value:"paper"},
+         {name:"scissors",value:"scissors"}
+       )
+    ),
+
+  new SlashCommandBuilder()
+    .setName("wouldyourather")
+    .setDescription("Get a random would-you-rather"),
+
+  new SlashCommandBuilder()
+    .setName("trivia")
+    .setDescription("Get a random trivia question"),
+
+  new SlashCommandBuilder()
+    .setName("confess")
+    .setDescription("Send an anonymous confession")
+    .addStringOption(o=>
+      o.setName("message")
+       .setDescription("Your anonymous confession")
+       .setRequired(true)
+    ),
 
   new SlashCommandBuilder()
     .setName("ping")
@@ -449,7 +677,7 @@ const commands=[
     .setDescription("Ban a member")
     .addUserOption(o=>
       o.setName("user")
-       .setDescription("User")
+       .setDescription("Member")
        .setRequired(true)
     ),
 
@@ -458,7 +686,7 @@ const commands=[
     .setDescription("Kick a member")
     .addUserOption(o=>
       o.setName("user")
-       .setDescription("User")
+       .setDescription("Member")
        .setRequired(true)
     ),
 
@@ -467,7 +695,7 @@ const commands=[
     .setDescription("Timeout a member")
     .addUserOption(o=>
       o.setName("user")
-       .setDescription("User")
+       .setDescription("Member")
        .setRequired(true)
     )
     .addIntegerOption(o=>
@@ -483,7 +711,7 @@ const commands=[
     .setDescription("Warn a member")
     .addUserOption(o=>
       o.setName("user")
-       .setDescription("User")
+       .setDescription("Member")
        .setRequired(true)
     )
     .addStringOption(o=>
@@ -497,7 +725,7 @@ const commands=[
     .setDescription("View warnings")
     .addUserOption(o=>
       o.setName("user")
-       .setDescription("User")
+       .setDescription("Member")
     ),
 
   new SlashCommandBuilder()
@@ -510,58 +738,54 @@ const commands=[
        .setMaxValue(100)
        .setRequired(true)
     )
-].map(x=>x.toJSON());
+].map(c=>c.toJSON());
 
 client.once("clientReady",async()=>{
-  console.log(`♡ ${client.user.tag} is online`);
+  console.log(`Bot online as ${client.user.tag}`);
+
   await client.application.commands.set(commands);
-  console.log("♡ Commands registered");
+
+  console.log("Commands registered.");
+
+  for(const guild of client.guilds.cache.values()){
+    await updateBoostPanel(guild).catch(()=>{});
+  }
 });
 
 client.on("interactionCreate",async interaction=>{
   try{
-
     if(interaction.isButton()){
 
-      if(interaction.customId==="friend_role"){
-        const role=await getRole(interaction.guild,"🤝 Friend");
+      if(interaction.customId.startsWith("selfrole:")){
+        const roleName=interaction.customId.slice(9);
+        const role=await getRole(interaction.guild,roleName);
 
         if(!role)
           return interaction.reply({
-            content:"❌ Friend role doesn't exist.",
+            content:"That role doesn't exist.",
             ephemeral:true
           });
 
         if(interaction.member.roles.cache.has(role.id)){
           await interaction.member.roles.remove(role);
+
           return interaction.reply({
-            content:"♡ Friend role removed.",
+            content:`Removed ${roleName}.`,
             ephemeral:true
           });
         }
 
-        await interaction.member.roles.add(role);
+        await interaction.member.roles.add(role).catch(()=>null);
 
         return interaction.reply({
-          content:"♡ You now have the Friend role!",
+          content:`Added ${roleName}.`,
           ephemeral:true
         });
       }
 
-      if(interaction.customId==="vip_role"){
-        const role=await getRole(interaction.guild,"💎 VIP");
-
-        if(!role)
-          return interaction.reply({
-            content:"❌ VIP role doesn't exist.",
-            ephemeral:true
-          });
-
-        if(!interaction.member.roles.cache.has(role.id))
-          await interaction.member.roles.add(role).catch(()=>{});
-
+      if(interaction.customId==="confess"){
         return interaction.reply({
-          content:"💎 VIP role added.",
+          content:"Use `/confess` to send an anonymous confession.",
           ephemeral:true
         });
       }
@@ -579,43 +803,71 @@ client.on("interactionCreate",async interaction=>{
             ephemeral:true
           });
 
+        const staffRole=await getRole(guild,"🔨 Staff");
+        const modRole=await getRole(guild,"🛡️ Moderator");
+
+        const overwrites=[
+          {
+            id:guild.roles.everyone.id,
+            deny:[PermissionsBitField.Flags.ViewChannel]
+          },
+          {
+            id:interaction.user.id,
+            allow:[
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ReadMessageHistory
+            ]
+          },
+          {
+            id:client.user.id,
+            allow:[
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ManageChannels,
+              PermissionsBitField.Flags.ReadMessageHistory
+            ]
+          }
+        ];
+
+        if(staffRole){
+          overwrites.push({
+            id:staffRole.id,
+            allow:[
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ReadMessageHistory
+            ]
+          });
+        }
+
+        if(modRole){
+          overwrites.push({
+            id:modRole.id,
+            allow:[
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ReadMessageHistory
+            ]
+          });
+        }
+
         const channel=await guild.channels.create({
           name:`ticket-${interaction.user.id}`,
           type:ChannelType.GuildText,
-          permissionOverwrites:[
-            {
-              id:guild.roles.everyone.id,
-              deny:[PermissionsBitField.Flags.ViewChannel]
-            },
-            {
-              id:interaction.user.id,
-              allow:[
-                PermissionsBitField.Flags.ViewChannel,
-                PermissionsBitField.Flags.SendMessages
-              ]
-            },
-            {
-              id:client.user.id,
-              allow:[
-                PermissionsBitField.Flags.ViewChannel,
-                PermissionsBitField.Flags.SendMessages,
-                PermissionsBitField.Flags.ManageChannels
-              ]
-            }
-          ]
+          permissionOverwrites:overwrites
         });
 
         await channel.send(
-`🎫 **Support Ticket**
+`**Support Ticket**
 
-♡ Tell us what you need help with.
-♡ Please be patient while staff responds.
+Tell us what you need help with.
 
-Only you and staff can see this ticket.`
+Staff will respond when available.`
         );
 
         return interaction.reply({
-          content:`♡ Ticket created: ${channel}`,
+          content:`Ticket created: ${channel}`,
           ephemeral:true
         });
       }
@@ -624,23 +876,20 @@ Only you and staff can see this ticket.`
     if(!interaction.isChatInputCommand()) return;
 
     if(interaction.commandName==="resetserver"){
-
-      if(!owner(interaction.member))
+      if(!isOwner(interaction.member))
         return interaction.reply({
-          content:"❌ Only the server owner can reset the server.",
+          content:"Only the server owner can use this command.",
           ephemeral:true
         });
 
       await interaction.reply({
-        content:"୨୧ **𝓡𝓮𝓫𝓾𝓲𝓵𝓭𝓲𝓷𝓰...**\n♡ Deleting the old layout and creating everything.",
+        content:"Rebuilding the server...",
         ephemeral:true
       });
 
       await resetServer(interaction.guild);
 
-      await interaction.editReply({
-        content:"♡ **Done!** The new server layout is ready."
-      }).catch(()=>{});
+      await interaction.editReply("Server rebuilt successfully.");
 
       setTimeout(()=>{
         interaction.deleteReply().catch(()=>{});
@@ -659,15 +908,15 @@ Only you and staff can see this ticket.`
       const required=needed(p.level);
       const percent=Math.min(100,Math.floor((p.xp/required)*100));
       const bars=Math.floor(percent/10);
-      const progress="▰".repeat(bars)+"▱".repeat(10-bars);
 
       return interaction.editReply(
-`୨୧ **𝓡𝓪𝓷𝓴**
+`୨୧・rank
 
-♡ **${member.user.username}**
-✦ Level: **${p.level}**
-✦ XP: **${p.xp}/${required}**
-${progress} **${percent}%**`
+**${member.user.username}**
+Level: **${p.level}**
+XP: **${p.xp}/${required}**
+
+${"▰".repeat(bars)}${"▱".repeat(10-bars)} ${percent}%`
       );
     }
 
@@ -681,9 +930,9 @@ ${progress} **${percent}%**`
         .slice(0,10);
 
       if(!top.length)
-        return interaction.editReply("♡ Nobody has earned XP yet.");
+        return interaction.editReply("Nobody has earned XP yet.");
 
-      let out="୨୧ **𝓛𝓮𝓪𝓭𝓮𝓻𝓫𝓸𝓪𝓻𝓭**\n\n";
+      let out="୨୧・leaderboard\n\n";
 
       top.forEach((x,i)=>{
         out+=`**${i+1}.** <@${x[0]}> — Level **${x[1].level}** (${x[1].xp} XP)\n`;
@@ -699,15 +948,15 @@ ${progress} **${percent}%**`
       return interaction.editReply({
         embeds:[
           new EmbedBuilder()
-            .setTitle(`୨୧ 𝓟𝓻𝓸𝓯𝓲𝓵𝓮`)
+            .setTitle("୨୧・profile")
             .setThumbnail(user.displayAvatarURL())
             .setDescription(
-`**♡ ${user.username}**
+`**${user.username}**
 
-✦ Level: **${p.level}**
-✦ XP: **${p.xp}/${needed(p.level)}**
-✦ Bio: ${p.bio||"Not set"}
-✦ Friends: **${p.friends.length}**`
+Level: **${p.level}**
+XP: **${p.xp}/${needed(p.level)}**
+Bio: ${p.bio||"Not set"}
+Friends: **${p.friends.length}**`
             )
         ]
       });
@@ -715,16 +964,19 @@ ${progress} **${percent}%**`
 
     if(interaction.commandName==="setbio"){
       const p=profile(member.id);
-      p.bio=interaction.options.getString("text");
+
+      p.bio=interaction.options.getString("text").slice(0,500);
+
       save("profiles.json",profiles);
-      return interaction.editReply("♡ Your bio has been updated.");
+
+      return interaction.editReply("Your bio has been updated.");
     }
 
     if(interaction.commandName==="friend"){
       const user=interaction.options.getUser("user");
 
       if(user.id===member.id)
-        return interaction.editReply("❌ You can't friend yourself.");
+        return interaction.editReply("You can't add yourself.");
 
       const p=profile(member.id);
 
@@ -733,7 +985,7 @@ ${progress} **${percent}%**`
 
       save("profiles.json",profiles);
 
-      return interaction.editReply(`🤝 ${user} was added to your friends.`);
+      return interaction.editReply(`${user} was added to your friends.`);
     }
 
     if(interaction.commandName==="friends"){
@@ -741,69 +993,153 @@ ${progress} **${percent}%**`
 
       return interaction.editReply(
         p.friends.length
-        ? `🤝 **Friends:** ${p.friends.map(x=>`<@${x}>`).join(", ")}`
-        : "♡ You don't have any friends added yet."
+        ? `Friends: ${p.friends.map(id=>`<@${id}>`).join(", ")}`
+        : "You don't have any friends added."
       );
     }
 
-    if(interaction.commandName==="icebreaker"){
-      const questions=[
-        "What's your favorite game?",
-        "What's your favorite song?",
-        "What's your dream vacation?",
-        "What's a hobby you want to try?",
-        "What's your favorite food?",
-        "What's one game you could play forever?"
-      ];
-
+    if(interaction.commandName==="coinflip"){
       return interaction.editReply(
-        `୨୧ **𝓘𝓬𝓮𝓫𝓻𝓮𝓪𝓴𝓮𝓻**\n\n♡ ${questions[Math.floor(Math.random()*questions.length)]}`
+        `୨୧・coinflip\n\n**${Math.random()<0.5?"Heads":"Tails"}**`
       );
     }
 
-    if(interaction.commandName==="question"){
-      const questions=[
-        "What's your current favorite game?",
-        "What's your favorite movie?",
-        "What would your perfect day look like?",
-        "What's something you're really good at?",
-        "What's something you want to learn?"
+    if(interaction.commandName==="roll"){
+      return interaction.editReply(
+        `୨୧・roll\n\nYou rolled **${Math.floor(Math.random()*6)+1}**.`
+      );
+    }
+
+    if(interaction.commandName==="8ball"){
+      const answers=[
+        "Yes.",
+        "No.",
+        "Maybe.",
+        "Definitely.",
+        "Probably.",
+        "Ask again later.",
+        "I don't think so.",
+        "Absolutely."
       ];
 
       return interaction.editReply(
-        `♡ **Question:** ${questions[Math.floor(Math.random()*questions.length)]}`
+        `୨୧・8ball\n\n${answers[Math.floor(Math.random()*answers.length)]}`
       );
+    }
+
+    if(interaction.commandName==="rps"){
+      const choice=interaction.options.getString("choice");
+      const choices=["rock","paper","scissors"];
+      const bot=choices[Math.floor(Math.random()*3)];
+
+      let result="Tie.";
+
+      if(
+        (choice==="rock"&&bot==="scissors")||
+        (choice==="paper"&&bot==="rock")||
+        (choice==="scissors"&&bot==="paper")
+      ) result="You win.";
+
+      else if(choice!==bot) result="You lose.";
+
+      return interaction.editReply(
+`୨୧・rps
+
+You: **${choice}**
+Bot: **${bot}**
+
+**${result}**`
+      );
+    }
+
+    if(interaction.commandName==="wouldyourather"){
+      const questions=[
+        "Would you rather have unlimited money or unlimited free time?",
+        "Would you rather live in the city or the countryside?",
+        "Would you rather never use social media again or never play games again?",
+        "Would you rather be able to fly or teleport?",
+        "Would you rather always be early or always be late?"
+      ];
+
+      return interaction.editReply(
+        `୨୧・would you rather\n\n${questions[Math.floor(Math.random()*questions.length)]}`
+      );
+    }
+
+    if(interaction.commandName==="trivia"){
+      const questions=[
+        ["What planet is known as the Red Planet?","Mars"],
+        ["How many continents are there?","7"],
+        ["What is the largest ocean?","Pacific Ocean"],
+        ["What gas do humans need to breathe?","Oxygen"],
+        ["How many sides does a hexagon have?","6"]
+      ];
+
+      const q=questions[Math.floor(Math.random()*questions.length)];
+
+      return interaction.editReply(
+        `୨୧・trivia\n\n**Question:** ${q[0]}\n\n**Answer:** ||${q[1]}||`
+      );
+    }
+
+    if(interaction.commandName==="confess"){
+      const message=interaction.options.getString("message").slice(0,1000);
+      const channel=await getChannel(guild,"୨୧・confessions");
+
+      if(!channel)
+        return interaction.editReply("The confession channel doesn't exist.");
+
+      const id=(confessions[guild.id]||0)+1;
+
+      confessions[guild.id]=id;
+      save("confessions.json",confessions);
+
+      await channel.send({
+        embeds:[
+          new EmbedBuilder()
+            .setTitle(`୨୧・confession #${id}`)
+            .setDescription(message)
+            .setFooter({text:"Anonymous confession"})
+            .setTimestamp()
+        ]
+      });
+
+      return interaction.editReply("Your confession was posted anonymously.");
     }
 
     if(interaction.commandName==="ping")
-      return interaction.editReply(`🏓 Pong! **${client.ws.ping}ms**`);
+      return interaction.editReply(`Pong! ${client.ws.ping}ms`);
 
-    if(["ban","kick","timeout","warn","warnings","clear"].includes(interaction.commandName)&&!moderator(member))
-      return interaction.editReply("❌ You don't have permission to use this command.");
+    if(["ban","kick","timeout","warn","warnings","clear"].includes(interaction.commandName)){
+      if(!isModerator(member))
+        return interaction.editReply("You don't have permission to use this command.");
+    }
 
     if(interaction.commandName==="ban"){
-      if(!owner(member))
-        return interaction.editReply("❌ Only the owner can ban members.");
+      if(!isOwner(member))
+        return interaction.editReply("Only the server owner can ban members.");
 
       const target=await guild.members.fetch(
         interaction.options.getUser("user").id
       ).catch(()=>null);
 
       if(!target||!target.bannable)
-        return interaction.editReply("❌ I can't ban that member.");
+        return interaction.editReply("I can't ban that member.");
 
-      await target.ban({reason:"Moderator ban"});
-      return interaction.editReply(`🔨 Banned **${target.user.tag}**.`);
+      await target.ban({reason:"Owner ban"});
+
+      return interaction.editReply(`Banned **${target.user.tag}**.`);
     }
 
     if(interaction.commandName==="kick"){
       const target=interaction.options.getMember("user");
 
       if(!target?.kickable)
-        return interaction.editReply("❌ I can't kick that member.");
+        return interaction.editReply("I can't kick that member.");
 
       await target.kick("Moderator kick");
-      return interaction.editReply(`👢 Kicked **${target.user.tag}**.`);
+
+      return interaction.editReply(`Kicked **${target.user.tag}**.`);
     }
 
     if(interaction.commandName==="timeout"){
@@ -811,12 +1147,15 @@ ${progress} **${percent}%**`
       const minutes=interaction.options.getInteger("minutes");
 
       if(!target?.moderatable)
-        return interaction.editReply("❌ I can't timeout that member.");
+        return interaction.editReply("I can't timeout that member.");
 
-      await target.timeout(minutes*60000,"Moderator timeout");
+      await target.timeout(
+        minutes*60000,
+        "Moderator timeout"
+      );
 
       return interaction.editReply(
-        `⏱️ Timed out **${target.user.tag}** for **${minutes} minutes**.`
+        `Timed out **${target.user.tag}** for **${minutes} minutes**.`
       );
     }
 
@@ -835,7 +1174,7 @@ ${progress} **${percent}%**`
       save("warnings.json",warnings);
 
       return interaction.editReply(
-        `⚠️ **${user.tag}** was warned.\nReason: ${reason}`
+        `Warned **${user.tag}**.\nReason: ${reason}`
       );
     }
 
@@ -844,10 +1183,12 @@ ${progress} **${percent}%**`
       const list=warnings[user.id]||[];
 
       if(!list.length)
-        return interaction.editReply(`♡ ${user.username} has no warnings.`);
+        return interaction.editReply(
+          `${user.username} has no warnings.`
+        );
 
       return interaction.editReply(
-`⚠️ **${user.username}'s Warnings**
+`୨୧・warnings
 
 ${list.map((w,i)=>`**${i+1}.** ${w.reason}`).join("\n")}`
       );
@@ -855,19 +1196,24 @@ ${list.map((w,i)=>`**${i+1}.** ${w.reason}`).join("\n")}`
 
     if(interaction.commandName==="clear"){
       const amount=interaction.options.getInteger("amount");
+
       await interaction.channel.bulkDelete(amount,true);
 
-      return interaction.editReply(`🧹 Deleted **${amount}** messages.`);
+      return interaction.editReply(
+        `Deleted **${amount}** messages.`
+      );
     }
 
   }catch(error){
     console.error(error);
 
     if(interaction.deferred||interaction.replied)
-      await interaction.editReply("❌ Something went wrong. Check the bot logs.").catch(()=>{});
+      await interaction.editReply(
+        "Something went wrong. Check the bot logs."
+      ).catch(()=>{});
     else
       await interaction.reply({
-        content:"❌ Something went wrong.",
+        content:"Something went wrong.",
         ephemeral:true
       }).catch(()=>{});
   }
@@ -897,71 +1243,128 @@ client.on("messageCreate",async message=>{
   if(leveled){
     await updateLevelRoles(message.member);
 
-    const channel=
-      settings[message.guild.id]?.levelChannel
-      ? message.guild.channels.cache.get(settings[message.guild.id].levelChannel)
+    const channel=settings[message.guild.id]?.levelChannel
+      ? message.guild.channels.cache.get(
+          settings[message.guild.id].levelChannel
+        )
       : await getChannel(message.guild,"୨୧・levels");
 
     if(channel){
       await channel.send(
-`╭──────────────୨୧
-**✦ 𝓛𝓔𝓥𝓔𝓛 𝓤𝓟 ✦**
+`୨୧・level up
 
-♡ ${message.author} reached **Level ${p.level}**!
-
-Keep chatting to reach the next level. ♡
-╰──────────────୨୧`
+${message.author} reached **Level ${p.level}**!`
       ).catch(()=>{});
     }
+  }
+});
+
+client.on("messageReactionAdd",async(reaction,user)=>{
+  try{
+    if(user.bot) return;
+
+    if(reaction.partial) await reaction.fetch().catch(()=>{});
+    if(reaction.message.partial)
+      await reaction.message.fetch().catch(()=>{});
+
+    if(reaction.emoji.name!=="⭐") return;
+
+    if(reaction.count<3) return;
+
+    const guild=reaction.message.guild;
+    const channel=await getChannel(guild,"୨୧・starboard");
+
+    if(!channel) return;
+
+    const key=reaction.message.id;
+
+    if(starboard[key]) return;
+
+    starboard[key]=true;
+    save("starboard.json",starboard);
+
+    const embed=new EmbedBuilder()
+      .setAuthor({
+        name:reaction.message.author.tag,
+        iconURL:reaction.message.author.displayAvatarURL()
+      })
+      .setDescription(
+`${reaction.message.content||"*No text content*"}\n\n[Jump to message](${reaction.message.url})`
+      )
+      .setFooter({
+        text:`${reaction.count} ⭐`
+      })
+      .setTimestamp();
+
+    await channel.send({
+      embeds:[embed]
+    }).catch(()=>{});
+
+  }catch(error){
+    console.error("Starboard error:",error);
   }
 });
 
 client.on("guildMemberUpdate",async(oldMember,newMember)=>{
-  const oldBoost=!!oldMember.premiumSince;
-  const newBoost=!!newMember.premiumSince;
+  try{
+    const oldBoost=!!oldMember.premiumSince;
+    const newBoost=!!newMember.premiumSince;
 
-  if(oldBoost===newBoost) return;
+    if(oldBoost===newBoost) return;
 
-  const booster=await getRole(newMember.guild,"🌸 Booster");
+    const booster=await getRole(
+      newMember.guild,
+      "🌸 Booster"
+    );
 
-  if(newBoost){
-    if(booster&&!newMember.roles.cache.has(booster.id))
-      await newMember.roles.add(booster).catch(()=>{});
+    if(newBoost){
+      if(booster&&!newMember.roles.cache.has(booster.id))
+        await newMember.roles.add(booster).catch(()=>{});
 
-    await updateBoostPanel(newMember.guild);
+      await updateBoostPanel(newMember.guild);
 
-    const channel=await getChannel(newMember.guild,"୨୧・boosts");
+      const channel=await getChannel(
+        newMember.guild,
+        "୨୧・boosts"
+      );
 
-    if(channel){
-      await channel.send(
-`╭──────────────୨୧
-**♡ 𝓝𝓮𝔀 𝓑𝓸𝓸𝓼𝓽 ♡**
+      if(channel){
+        await channel.send(
+          `Thank you ${newMember} for boosting the server.`
+        ).catch(()=>{});
+      }
+    }else{
+      if(booster&&newMember.roles.cache.has(booster.id))
+        await newMember.roles.remove(booster).catch(()=>{});
 
-Thank you ${newMember} for boosting the server! 💗
-
-The boost counter has been updated above.
-╰──────────────୨୧`
-      ).catch(()=>{});
+      await updateBoostPanel(newMember.guild);
     }
-  }else{
-    if(booster&&newMember.roles.cache.has(booster.id))
-      await newMember.roles.remove(booster).catch(()=>{});
-
-    await updateBoostPanel(newMember.guild);
+  }catch(error){
+    console.error(error);
   }
 });
 
 client.on("guildMemberAdd",async member=>{
-  const channel=await getChannel(member.guild,"୨୧・introductions");
+  try{
+    const memberRole=await getRole(member.guild,"Member");
 
-  if(channel){
-    await channel.send(
-`♡ **Welcome ${member}!**
+    if(memberRole)
+      await member.roles.add(memberRole).catch(()=>{});
 
-We're happy to have you here. ✦
+    const channel=await getChannel(
+      member.guild,
+      "୨୧・introductions"
+    );
 
-Introduce yourself and make some friends! ୨୧`
-    ).catch(()=>{});
+    if(channel){
+      await channel.send(
+`Welcome ${member}!
+
+Introduce yourself and make some friends.`
+      ).catch(()=>{});
+    }
+  }catch(error){
+    console.error(error);
   }
 });
 
