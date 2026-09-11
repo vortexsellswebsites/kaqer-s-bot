@@ -168,7 +168,7 @@ function options(c){
 
 const commands=C.map(x=>options(x).toJSON());
 
-client.once("ready",async()=>{
+client.once("clientReady", () => {
  console.log(`✅ ${client.user.tag} online`);
  await client.application.commands.set(commands);
  console.log(`✅ ${commands.length} commands loaded`);
