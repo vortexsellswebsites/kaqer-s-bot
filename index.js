@@ -1,31 +1,27 @@
 const {
   Client,
   GatewayIntentBits,
+  Partials,
   PermissionsBitField,
-  EmbedBuilder,
-  SlashCommandBuilder,
   ChannelType,
+  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  MessageFlags,
-} = require("discord.js");
+  SlashCommandBuilder
+} = require('discord.js');
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
 
 const TOKEN = process.env.TOKEN;
 
 if (!TOKEN) {
-  throw new Error("TOKEN environment variable is missing.");
+  console.error('❌ TOKEN is missing from Railway variables.');
+  process.exit(1);
 }
-
-/* =========================
-   CLIENT
-========================= */
 
 const client = new Client({
   intents: [
@@ -33,28 +29,33 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMessageReactions
   ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction
+  ]
 });
 
-/* =========================
-   DATA
-========================= */
-
-const DATA_FILE = path.join(__dirname, "data.json");
+const DATA_FILE = './data.json';
 
 let data = {
   xp: {},
   warnings: {},
   bios: {},
   friends: {},
+  tickets: {}
 };
 
 if (fs.existsSync(DATA_FILE)) {
   try {
-    data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+    data = {
+      ...data,
+      ...JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))
+    };
   } catch {
-    console.log("Could not read data.json. Creating fresh data.");
+    console.log('⚠️ Could not read data.json, using fresh data.');
   }
 }
 
@@ -63,175 +64,125 @@ function saveData() {
 }
 
 /* =========================
-   CONFIG
+   ROLES
 ========================= */
 
-const CATEGORY_NAMES = {
-  INFO: "001・INFO",
-  COMMUNITY: "002・COMMUNITY",
-  EXTRAS: "003・EXTRAS",
-  TICKETS: "004・TICKETS",
-};
+const ROLES = [
+  // STAFF
+  { name: '👑・owner', color: 0xff69b4 },
+  { name: '⚡・admin', color: 0xff8fab },
+  { name: '🛡️・mod', color: 0xc77dff },
+  { name: '🔨・staff', color: 0x9d4edd },
 
-const CHANNELS = {
-  rules: "୨୧・rules",
-  announcements: "୨୧・announcements",
-  serverInfo: "୨୧・server-info",
-  introductions: "୨୧・introductions",
-  roles: "୨୧・roles",
-  boosts: "୨୧・boosts",
-  partnerships: "୨୧・partnerships",
+  // SERVER
+  { name: '🌸・booster', color: 0xffb6d9 },
+  { name: '💎・vip', color: 0x74c0fc },
+  { name: '🎀・friend', color: 0xffc8dd },
+  { name: '💜・partner', color: 0xb197fc },
+  { name: '💫・supporter', color: 0xffd166 },
+  { name: '🫶・trusted', color: 0xffa8dad },
+  { name: '⭐・active', color: 0xffd43b },
+  { name: '🕰️・og', color: 0xadb5bd },
 
-  chat: "୨୧・chat",
-  media: "୨୧・media",
-  memes: "୨୧・memes",
-  games: "୨୧・games",
-  suggestions: "୨୧・suggestions",
+  // SELF ROLES
+  { name: '୨୧・she/her', color: 0xffb6d9 },
+  { name: '୨୧・he/him', color: 0x9ec5fe },
+  { name: '୨୧・they/them', color: 0xcdb4db },
 
-  levels: "୨୧・levels",
-  starboard: "୨୧・starboard",
-  confessions: "୨୧・confessions",
-  support: "୨୧・support",
-};
+  { name: '୨୧・minor', color: 0xffc8dd },
+  { name: '୨୧・adult', color: 0xcdb4db },
 
-const STAFF_ROLES = [
-  "👑・owner",
-  "⚡・admin",
-  "🛡️・mod",
-  "🔨・staff",
+  { name: '୨୧・artist', color: 0xffadad },
+  { name: '୨୧・music', color: 0xbde0fe },
+  { name: '୨୧・anime', color: 0xffc8dd },
+
+  { name: '୨୧・social', color: 0xa2d2ff },
+  { name: '୨୧・introvert', color: 0xbdb2ff },
+  { name: '୨୧・extrovert', color: 0xffd6a5 }
 ];
 
-const BOOSTER_ROLE = "🌸・booster";
-const MEMBER_ROLE = "Member";
+/* =========================
+   CHANNEL STRUCTURE
+========================= */
 
-/* Safe self-assignable roles */
-const SELF_ROLES = [
-  "୨୧・woman",
-  "୨୧・man",
-  "୨୧・they/them",
-  "୨୧・she/her",
-  "୨୧・he/him",
-  "୨୧・minor",
-  "୨୧・adult",
-  "୨୧・single",
-  "୨୧・taken",
-];
+const STRUCTURE = {
+  '001・INFO': [
+    ['୨୧・rules', 'rules'],
+    ['୨୧・announcements', 'announcements'],
+    ['୨୧・server-info', 'info'],
+    ['୨୧・introductions', 'introductions'],
+    ['୨୧・roles', 'roles'],
+    ['୨୧・boosts', 'boosts'],
+    ['୨୧・partnerships', 'partnerships']
+  ],
+
+  '002・COMMUNITY': [
+    ['୨୧・chat', 'chat'],
+    ['୨୧・media', 'media'],
+    ['୨୧・memes', 'memes'],
+    ['୨୧・games', 'games'],
+    ['୨୧・suggestions', 'suggestions']
+  ],
+
+  '003・EXTRAS': [
+    ['୨୧・levels', 'levels'],
+    ['୨୧・starboard', 'starboard'],
+    ['୨୧・confessions', 'confessions'],
+    ['୨୧・support', 'support']
+  ],
+
+  '004・TICKETS': []
+};
 
 /* =========================
    HELPERS
 ========================= */
 
-function findRole(guild, name) {
-  return guild.roles.cache.find((r) => r.name === name);
+function getRole(guild, name) {
+  return guild.roles.cache.find(r => r.name === name);
 }
 
-function findChannel(guild, name) {
-  return guild.channels.cache.find((c) => c.name === name);
+function getChannel(guild, name) {
+  return guild.channels.cache.find(c => c.name === name);
+}
+
+function getStaffRoles(guild) {
+  return [
+    getRole(guild, '👑・owner'),
+    getRole(guild, '⚡・admin'),
+    getRole(guild, '🛡️・mod'),
+    getRole(guild, '🔨・staff')
+  ].filter(Boolean);
 }
 
 function isStaff(member) {
   if (!member) return false;
 
-  if (member.id === member.guild.ownerId) {
-    return true;
-  }
-
-  return member.roles.cache.some((role) =>
-    STAFF_ROLES.includes(role.name)
+  return (
+    member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+    getStaffRoles(member.guild).some(role =>
+      member.roles.cache.has(role.id)
+    )
   );
 }
 
-function getStaffRoleIds(guild) {
-  return guild.roles.cache
-    .filter((role) => STAFF_ROLES.includes(role.name))
-    .map((role) => role.id);
+function isOwner(member) {
+  return (
+    member.id === member.guild.ownerId ||
+    member.roles.cache.has(
+      getRole(member.guild, '👑・owner')?.id
+    )
+  );
 }
 
-function botMember(guild) {
-  return guild.members.me;
-}
+function roleButton(roleName, emoji) {
+  const key = Buffer.from(roleName).toString('base64');
 
-function canModerateTarget(actor, target) {
-  if (!actor || !target) return false;
-
-  if (target.id === actor.id) return false;
-  if (target.id === actor.guild.ownerId) return false;
-
-  if (actor.id !== actor.guild.ownerId) {
-    if (
-      target.roles.highest.position >=
-      actor.roles.highest.position
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function getXP(userId) {
-  return data.xp[userId] || { xp: 0, level: 0 };
-}
-
-function calculateLevel(xp) {
-  return Math.floor(Math.sqrt(xp / 100));
-}
-
-function xpNeeded(level) {
-  return (level + 1) * (level + 1) * 100;
-}
-
-/* =========================
-   EMBEDS
-========================= */
-
-function baseEmbed(title, description) {
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description)
-    .setTimestamp();
-}
-
-/* =========================
-   CHANNEL PERMISSIONS
-========================= */
-
-function readOnlyOverwrites(guild) {
-  return [
-    {
-      id: guild.roles.everyone.id,
-      deny: [
-        PermissionsBitField.Flags.SendMessages,
-        PermissionsBitField.Flags.AddReactions,
-      ],
-    },
-  ];
-}
-
-function staffOnlyOverwrites(guild) {
-  const overwrites = [
-    {
-      id: guild.roles.everyone.id,
-      deny: [PermissionsBitField.Flags.ViewChannel],
-    },
-  ];
-
-  for (const roleName of STAFF_ROLES) {
-    const role = findRole(guild, roleName);
-
-    if (role) {
-      overwrites.push({
-        id: role.id,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.ReadMessageHistory,
-        ],
-      });
-    }
-  }
-
-  return overwrites;
+  return new ButtonBuilder()
+    .setCustomId(`selfrole_${key}`)
+    .setLabel(roleName.replace('୨୧・', ''))
+    .setEmoji(emoji)
+    .setStyle(ButtonStyle.Secondary);
 }
 
 /* =========================
@@ -239,1207 +190,1259 @@ function staffOnlyOverwrites(guild) {
 ========================= */
 
 async function resetServer(guild) {
-  console.log(`Resetting ${guild.name}...`);
+  console.log(`🔄 Resetting ${guild.name}...`);
 
-  /* Delete channels */
+  /* DELETE CHANNELS */
+
   for (const channel of [...guild.channels.cache.values()]) {
     try {
-      await channel.delete("Server reset");
+      await channel.delete('Server reset');
     } catch {}
   }
 
-  /* Delete removable roles */
+  /* DELETE REMOVABLE ROLES */
+
   for (const role of [...guild.roles.cache.values()]) {
-    if (role.id === guild.id) continue;
-    if (role.managed) continue;
+    if (
+      role.id === guild.id ||
+      role.managed ||
+      role.position >= guild.members.me.roles.highest.position
+    ) {
+      continue;
+    }
 
     try {
-      await role.delete("Server reset");
+      await role.delete('Server reset');
     } catch {}
   }
 
-  await new Promise((r) => setTimeout(r, 1500));
+  /* CREATE ROLES */
 
-  /* =========================
-     CATEGORIES
-  ========================= */
+  const createdRoles = {};
 
-  const info = await guild.channels.create({
-    name: CATEGORY_NAMES.INFO,
-    type: ChannelType.GuildCategory,
-  });
+  for (const roleInfo of ROLES) {
+    try {
+      const role = await guild.roles.create({
+        name: roleInfo.name,
+        color: roleInfo.color,
+        reason: 'Server reset'
+      });
 
-  const community = await guild.channels.create({
-    name: CATEGORY_NAMES.COMMUNITY,
-    type: ChannelType.GuildCategory,
-  });
+      createdRoles[roleInfo.name] = role;
+    } catch (err) {
+      console.log(`Could not create ${roleInfo.name}`);
+    }
+  }
 
-  const extras = await guild.channels.create({
-    name: CATEGORY_NAMES.EXTRAS,
-    type: ChannelType.GuildCategory,
-  });
+  /* CREATE CATEGORIES + CHANNELS */
 
-  const tickets = await guild.channels.create({
-    name: CATEGORY_NAMES.TICKETS,
-    type: ChannelType.GuildCategory,
-  });
+  const channels = {};
 
-  /* =========================
-     CREATE CHANNEL HELPER
-  ========================= */
-
-  async function makeChannel(
-    name,
-    parent,
-    options = {}
-  ) {
-    return guild.channels.create({
-      name,
-      type: ChannelType.GuildText,
-      parent,
-      ...options,
+  for (const [categoryName, channelList] of Object.entries(STRUCTURE)) {
+    const category = await guild.channels.create({
+      name: categoryName,
+      type: ChannelType.GuildCategory
     });
+
+    channels[categoryName] = category;
+
+    for (const [channelName, type] of channelList) {
+      const channel = await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: category.id
+      });
+
+      channels[type] = channel;
+    }
   }
 
   /* =========================
-     INFO
+     LOCK INFO CHANNELS
   ========================= */
 
-  const rules = await makeChannel(
-    CHANNELS.rules,
-    info,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
+  const readOnly = [
+    'rules',
+    'announcements',
+    'info',
+    'roles',
+    'boosts',
+    'partnerships',
+    'levels',
+    'starboard',
+    'confessions',
+    'support'
+  ];
 
-  const announcements = await makeChannel(
-    CHANNELS.announcements,
-    info,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
+  for (const type of readOnly) {
+    const channel = channels[type];
+    if (!channel) continue;
 
-  const serverInfo = await makeChannel(
-    CHANNELS.serverInfo,
-    info,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  const introductions = await makeChannel(
-    CHANNELS.introductions,
-    info
-  );
-
-  const roles = await makeChannel(
-    CHANNELS.roles,
-    info,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  const boosts = await makeChannel(
-    CHANNELS.boosts,
-    info,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  const partnerships = await makeChannel(
-    CHANNELS.partnerships,
-    info,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  /* =========================
-     COMMUNITY
-  ========================= */
-
-  const chat = await makeChannel(
-    CHANNELS.chat,
-    community
-  );
-
-  const media = await makeChannel(
-    CHANNELS.media,
-    community
-  );
-
-  const memes = await makeChannel(
-    CHANNELS.memes,
-    community
-  );
-
-  const games = await makeChannel(
-    CHANNELS.games,
-    community
-  );
-
-  const suggestions = await makeChannel(
-    CHANNELS.suggestions,
-    community,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  /* =========================
-     EXTRAS
-  ========================= */
-
-  const levels = await makeChannel(
-    CHANNELS.levels,
-    extras,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  const starboard = await makeChannel(
-    CHANNELS.starboard,
-    extras,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  const confessions = await makeChannel(
-    CHANNELS.confessions,
-    extras,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
-
-  const support = await makeChannel(
-    CHANNELS.support,
-    extras,
-    {
-      permissionOverwrites: readOnlyOverwrites(guild),
-    }
-  );
+    try {
+      await channel.permissionOverwrites.edit(
+        guild.roles.everyone,
+        {
+          SendMessages: false
+        }
+      );
+    } catch {}
+  }
 
   /* =========================
      RULES
   ========================= */
 
-  await rules.send({
+  await channels.rules.send({
     embeds: [
-      baseEmbed(
-        "୨୧・server rules",
-        [
-          "**01 — Be respectful**",
-          "No harassment, bullying, or unnecessary drama.",
-          "",
-          "**02 — No spam**",
-          "Don't flood chats, mentions, or reactions.",
-          "",
-          "**03 — No NSFW**",
-          "Keep the server appropriate for everyone.",
-          "",
-          "**04 — No advertising**",
-          "Don't advertise without permission.",
-          "",
-          "**05 — Listen to staff**",
-          "Staff decisions are made to keep the server comfortable.",
-          "",
-          "**06 — Use channels correctly**",
-          "Keep conversations where they belong.",
-          "",
-          "**07 — Don't abuse bots**",
-          "No command spam or exploiting bot features.",
-          "",
-          "**08 — Have fun**",
-          "Meet people, talk, play games, and enjoy the server ♡",
-        ].join("\n")
-      ),
-    ],
-  });
-
-  /* =========================
-     ANNOUNCEMENTS
-  ========================= */
-
-  await announcements.send({
-    embeds: [
-      baseEmbed(
-        "୨୧・announcements",
-        "Important server updates, events, and announcements will be posted here.\n\n♡ Keep notifications on if you don't want to miss anything."
-      ),
-    ],
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ server rules')
+        .setDescription(
+          '**01** be respectful ♡\n' +
+          '**02** no harassment or bullying\n' +
+          '**03** no spam or flooding\n' +
+          '**04** no NSFW content\n' +
+          '**05** no slurs or hateful behavior\n' +
+          '**06** no advertising without permission\n' +
+          '**07** listen to staff\n' +
+          '**08** use channels correctly\n\n' +
+          'breaking the rules may result in a warning, timeout, kick, or ban.'
+        )
+        .setFooter({
+          text: '୨୧ enjoy your stay!'
+        })
+    ]
   });
 
   /* =========================
      SERVER INFO
   ========================= */
 
-  await serverInfo.send({
+  await channels.info.send({
     embeds: [
-      baseEmbed(
-        "୨୧・server info",
-        [
-          `**Server:** ${guild.name}`,
-          `**Members:** ${guild.memberCount}`,
-          "",
-          "♡ Be active",
-          "♡ Meet new people",
-          "♡ Use the role panel",
-          "♡ Participate in games",
-          "♡ Earn XP by chatting",
-          "♡ Open a ticket when you need help",
-        ].join("\n")
-      ),
-    ],
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ server info')
+        .setDescription(
+          `welcome to **${guild.name}** ♡\n\n` +
+          'read the rules before chatting.\n' +
+          'grab your self roles in the roles channel.\n' +
+          'introduce yourself and meet everyone!\n\n' +
+          '**community**\n' +
+          'chat • media • memes • games\n\n' +
+          '**extras**\n' +
+          'levels • starboard • confessions • support'
+        )
+    ]
   });
 
   /* =========================
-     ROLES
+     ROLE PANEL
   ========================= */
 
-  const roleButtons = [];
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      roleButton('୨୧・she/her', '♡'),
+      roleButton('୨୧・he/him', '♡'),
+      roleButton('୨୧・they/them', '♡')
+    ),
 
-  for (const roleName of SELF_ROLES) {
-    roleButtons.push(
-      new ButtonBuilder()
-        .setCustomId(
-          `role_${Buffer.from(roleName).toString("base64").slice(0, 70)}`
-        )
-        .setLabel(roleName)
-        .setStyle(ButtonStyle.Secondary)
-    );
-  }
+    new ActionRowBuilder().addComponents(
+      roleButton('୨୧・minor', '🌷'),
+      roleButton('୨୧・adult', '🌸')
+    ),
 
-  const roleRows = [];
+    new ActionRowBuilder().addComponents(
+      roleButton('୨୧・artist', '🎨'),
+      roleButton('୨୧・music', '🎵'),
+      roleButton('୨୧・anime', '🎀')
+    ),
 
-  for (let i = 0; i < roleButtons.length; i += 5) {
-    roleRows.push(
-      new ActionRowBuilder().addComponents(
-        roleButtons.slice(i, i + 5)
-      )
-    );
-  }
+    new ActionRowBuilder().addComponents(
+      roleButton('୨୧・social', '💬'),
+      roleButton('୨୧・introvert', '🌙'),
+      roleButton('୨୧・extrovert', '☀️')
+    )
+  ];
 
-  await roles.send({
+  await channels.roles.send({
     embeds: [
-      baseEmbed(
-        "୨୧・roles",
-        "Choose the roles that fit you ♡\n\nClick a role to add it. Click it again to remove it.\n\n**If a role doesn't work, ask the owner to create it.**"
-      ),
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ choose your roles')
+        .setDescription(
+          'pick whatever fits you ♡\n' +
+          'click a role to add it or remove it.\n\n' +
+          '**♡ PRONOUNS**\n' +
+          'choose your pronouns.\n\n' +
+          '**🌷 AGE**\n' +
+          'choose your age group.\n\n' +
+          '**🎀 INTERESTS**\n' +
+          'show everyone what you enjoy.\n\n' +
+          '**🌸 VIBES**\n' +
+          'choose your social style.'
+        )
+        .setFooter({
+          text: '୨୧ you can change these anytime'
+        })
     ],
-    components: roleRows,
+    components: rows
+  });
+
+  /* =========================
+     INTRODUCTIONS
+  ========================= */
+
+  await channels.introductions.send({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ introduce yourself')
+        .setDescription(
+          'new here? tell everyone a little about yourself ♡\n\n' +
+          '・ name / nickname\n' +
+          '・ age\n' +
+          '・ pronouns\n' +
+          '・ hobbies\n' +
+          '・ favorite games / music / shows\n' +
+          '・ anything else!'
+        )
+    ]
+  });
+
+  /* =========================
+     ANNOUNCEMENTS
+  ========================= */
+
+  await channels.announcements.send({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ announcements')
+        .setDescription('server announcements will appear here ♡')
+    ]
   });
 
   /* =========================
      BOOSTS
   ========================= */
 
-  await boosts.send({
+  await channels.boosts.send({
     embeds: [
-      baseEmbed(
-        "🌸・server boosts",
-        [
-          `Current boosts: **${guild.premiumSubscriptionCount || 0}**`,
-          `Boost level: **${guild.premiumTier || 0}**`,
-          "",
-          "Thank you to everyone who supports the server ♡",
-        ].join("\n")
-      ),
-    ],
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ server boosts')
+        .setDescription(
+          'thank you to everyone who boosts the server! ♡\n\n' +
+          'boosters may receive special perks and recognition.'
+        )
+    ]
   });
 
   /* =========================
      PARTNERSHIPS
   ========================= */
 
-  await partnerships.send({
+  const partnershipButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('open_partnership')
+      .setLabel('apply for partnership')
+      .setEmoji('💜')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channels.partnerships.send({
     embeds: [
-      baseEmbed(
-        "୨୧・partnerships",
-        "Interested in partnering with the server?\n\nClick the button below to open a private partnership application."
-      ),
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ partnerships')
+        .setDescription(
+          'want to partner with us? ♡\n\n' +
+          'click the button below to open a private partnership application.'
+        )
     ],
-    components: [
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("open_partnership")
-          .setLabel("Apply for Partnership")
-          .setEmoji("🤝")
-          .setStyle(ButtonStyle.Primary)
-      ),
-    ],
+    components: [partnershipButton]
   });
 
   /* =========================
      SUGGESTIONS
   ========================= */
 
-  await suggestions.send({
+  const suggestionButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('open_suggestion')
+      .setLabel('make a suggestion')
+      .setEmoji('💡')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channels.suggestions.send({
     embeds: [
-      baseEmbed(
-        "୨୧・suggestions",
-        "Have an idea that could make the server better?\n\nClick below and send your suggestion."
-      ),
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ suggestions')
+        .setDescription(
+          'have an idea for the server? ♡\n\n' +
+          'click below to submit one.'
+        )
     ],
-    components: [
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("open_suggestion")
-          .setLabel("Make a Suggestion")
-          .setEmoji("💡")
-          .setStyle(ButtonStyle.Primary)
-      ),
-    ],
+    components: [suggestionButton]
   });
 
   /* =========================
      CONFESSIONS
   ========================= */
 
-  await confessions.send({
+  const confessionButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('open_confession')
+      .setLabel('send a confession')
+      .setEmoji('💌')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channels.confessions.send({
     embeds: [
-      baseEmbed(
-        "୨୧・confessions",
-        "Want to say something anonymously?\n\nClick below to submit an anonymous confession."
-      ),
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ confessions')
+        .setDescription(
+          'say something anonymously ♡\n\n' +
+          'click the button below to send a confession.'
+        )
     ],
-    components: [
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("open_confession")
-          .setLabel("Send Confession")
-          .setEmoji("🤫")
-          .setStyle(ButtonStyle.Secondary)
-      ),
-    ],
+    components: [confessionButton]
   });
 
   /* =========================
      SUPPORT
   ========================= */
 
-  await support.send({
+  const supportButton = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('open_support')
+      .setLabel('open support ticket')
+      .setEmoji('🎫')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channels.support.send({
     embeds: [
-      baseEmbed(
-        "୨୧・support",
-        "Need help with something?\n\nOpen a private support ticket and staff will help you."
-      ),
+      new EmbedBuilder()
+        .setColor(0xffb6d9)
+        .setTitle('୨୧・ support')
+        .setDescription(
+          'need help with something? ♡\n\n' +
+          'open a private ticket and staff will help you.'
+        )
     ],
-    components: [
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("open_support")
-          .setLabel("Open Support Ticket")
-          .setEmoji("🎫")
-          .setStyle(ButtonStyle.Primary)
-      ),
-    ],
+    components: [supportButton]
   });
 
   /* =========================
-     GAMES
+     SAVE CHANNEL IDS
   ========================= */
 
-  await games.send({
-    embeds: [
-      baseEmbed(
-        "🎮・games",
-        [
-          "**Fun commands**",
-          "",
-          "`/coinflip` — Flip a coin",
-          "`/roll` — Roll a dice",
-          "`/8ball` — Ask the magic 8-ball",
-          "`/rps` — Rock paper scissors",
-          "`/wouldyourather` — Would you rather?",
-          "`/trivia` — Answer trivia",
-        ].join("\n")
-      ),
-    ],
-  });
-
-  /* =========================
-     SAVE SETTINGS
-  ========================= */
-
-  data.ticketCategory = tickets.id;
-  data.levelChannel = levels.id;
-  data.starboardChannel = starboard.id;
-  data.introductionsChannel = introductions.id;
-  data.boostChannel = boosts.id;
+  data.channels = {
+    levels: channels.levels?.id,
+    starboard: channels.starboard?.id,
+    ticketCategory: channels['004・TICKETS']?.id
+  };
 
   saveData();
 
-  return {
-    rules,
-    announcements,
-    serverInfo,
-    introductions,
-    roles,
-    boosts,
-    partnerships,
-    chat,
-    media,
-    memes,
-    games,
-    suggestions,
-    levels,
-    starboard,
-    confessions,
-    support,
-    tickets,
-  };
+  return channels;
 }
 
 /* =========================
-   SLASH COMMANDS
+   COMMANDS
 ========================= */
 
 const commands = [
   new SlashCommandBuilder()
-    .setName("resetserver")
-    .setDescription("Completely rebuild the server.")
+    .setName('resetserver')
+    .setDescription('Completely rebuild the server')
     .setDefaultMemberPermissions(
-      PermissionsBitField.Flags.Administrator.toString()
+      PermissionsBitField.Flags.Administrator
     ),
 
   new SlashCommandBuilder()
-    .setName("coinflip")
-    .setDescription("Flip a coin."),
+    .setName('coinflip')
+    .setDescription('Flip a coin'),
 
   new SlashCommandBuilder()
-    .setName("roll")
-    .setDescription("Roll a dice."),
+    .setName('roll')
+    .setDescription('Roll a dice'),
 
   new SlashCommandBuilder()
-    .setName("8ball")
-    .setDescription("Ask the magic 8-ball.")
-    .addStringOption((o) =>
-      o
-        .setName("question")
-        .setDescription("Your question")
+    .setName('8ball')
+    .setDescription('Ask the magic 8ball')
+    .addStringOption(o =>
+      o.setName('question')
+        .setDescription('Your question')
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName("rps")
-    .setDescription("Play rock paper scissors.")
-    .addStringOption((o) =>
-      o
-        .setName("choice")
-        .setDescription("Your choice")
+    .setName('rps')
+    .setDescription('Play rock paper scissors')
+    .addStringOption(o =>
+      o.setName('choice')
+        .setDescription('Your choice')
         .setRequired(true)
         .addChoices(
-          { name: "Rock", value: "rock" },
-          { name: "Paper", value: "paper" },
-          { name: "Scissors", value: "scissors" }
+          { name: 'rock', value: 'rock' },
+          { name: 'paper', value: 'paper' },
+          { name: 'scissors', value: 'scissors' }
         )
     ),
 
   new SlashCommandBuilder()
-    .setName("wouldyourather")
-    .setDescription("Get a random would-you-rather question."),
+    .setName('wouldyourather')
+    .setDescription('Get a would you rather question'),
 
   new SlashCommandBuilder()
-    .setName("trivia")
-    .setDescription("Get a random trivia question."),
+    .setName('trivia')
+    .setDescription('Get a random trivia question'),
 
   new SlashCommandBuilder()
-    .setName("rank")
-    .setDescription("View your XP rank.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("User to check")
-        .setRequired(false)
-    ),
+    .setName('rank')
+    .setDescription('See your level'),
 
   new SlashCommandBuilder()
-    .setName("leaderboard")
-    .setDescription("View the XP leaderboard."),
+    .setName('leaderboard')
+    .setDescription('See the XP leaderboard'),
 
   new SlashCommandBuilder()
-    .setName("profile")
-    .setDescription("View a profile.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("User to view")
-        .setRequired(false)
-    ),
+    .setName('profile')
+    .setDescription('See your profile'),
 
   new SlashCommandBuilder()
-    .setName("setbio")
-    .setDescription("Set your profile bio.")
-    .addStringOption((o) =>
-      o
-        .setName("bio")
-        .setDescription("Your bio")
-        .setRequired(true)
-        .setMaxLength(200)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("friend")
-    .setDescription("Add someone as a friend.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("User")
+    .setName('setbio')
+    .setDescription('Set your profile bio')
+    .addStringOption(o =>
+      o.setName('bio')
+        .setDescription('Your bio')
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName("friends")
-    .setDescription("View your friends."),
+    .setName('friend')
+    .setDescription('Add someone as a friend')
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('User')
+        .setRequired(true)
+    ),
 
   new SlashCommandBuilder()
-    .setName("ban")
-    .setDescription("Ban a member.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("Member to ban")
+    .setName('friends')
+    .setDescription('See your friends'),
+
+  new SlashCommandBuilder()
+    .setName('ban')
+    .setDescription('Ban a member')
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Member')
         .setRequired(true)
     )
-    .addStringOption((o) =>
-      o
-        .setName("reason")
-        .setDescription("Reason")
-        .setRequired(false)
+    .addStringOption(o =>
+      o.setName('reason')
+        .setDescription('Reason')
     ),
 
   new SlashCommandBuilder()
-    .setName("kick")
-    .setDescription("Kick a member.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("Member to kick")
+    .setName('kick')
+    .setDescription('Kick a member')
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Member')
         .setRequired(true)
     )
-    .addStringOption((o) =>
-      o
-        .setName("reason")
-        .setDescription("Reason")
-        .setRequired(false)
+    .addStringOption(o =>
+      o.setName('reason')
+        .setDescription('Reason')
     ),
 
   new SlashCommandBuilder()
-    .setName("timeout")
-    .setDescription("Timeout a member.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("Member to timeout")
+    .setName('timeout')
+    .setDescription('Timeout a member')
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Member')
         .setRequired(true)
     )
-    .addIntegerOption((o) =>
-      o
-        .setName("minutes")
-        .setDescription("Timeout length")
-        .setRequired(true)
+    .addIntegerOption(o =>
+      o.setName('minutes')
+        .setDescription('Timeout length')
         .setMinValue(1)
         .setMaxValue(40320)
-    )
-    .addStringOption((o) =>
-      o
-        .setName("reason")
-        .setDescription("Reason")
-        .setRequired(false)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("warn")
-    .setDescription("Warn a member.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("Member")
         .setRequired(true)
     )
-    .addStringOption((o) =>
-      o
-        .setName("reason")
-        .setDescription("Reason")
+    .addStringOption(o =>
+      o.setName('reason')
+        .setDescription('Reason')
+    ),
+
+  new SlashCommandBuilder()
+    .setName('warn')
+    .setDescription('Warn a member')
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Member')
+        .setRequired(true)
+    )
+    .addStringOption(o =>
+      o.setName('reason')
+        .setDescription('Reason')
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName("warnings")
-    .setDescription("View warnings.")
-    .addUserOption((o) =>
-      o
-        .setName("user")
-        .setDescription("Member")
+    .setName('warnings')
+    .setDescription('See member warnings')
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Member')
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName("clear")
-    .setDescription("Delete messages.")
-    .addIntegerOption((o) =>
-      o
-        .setName("amount")
-        .setDescription("Number of messages")
-        .setRequired(true)
+    .setName('clear')
+    .setDescription('Delete messages')
+    .addIntegerOption(o =>
+      o.setName('amount')
+        .setDescription('1-100 messages')
         .setMinValue(1)
         .setMaxValue(100)
+        .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName("confess")
-    .setDescription("Send an anonymous confession.")
-    .addStringOption((o) =>
-      o
-        .setName("message")
-        .setDescription("Your confession")
-        .setRequired(true)
-        .setMaxLength(1000)
-    ),
+    .setName('confess')
+    .setDescription('Send an anonymous confession'),
 
   new SlashCommandBuilder()
-    .setName("suggest")
-    .setDescription("Send a suggestion.")
-    .addStringOption((o) =>
-      o
-        .setName("suggestion")
-        .setDescription("Your suggestion")
-        .setRequired(true)
-        .setMaxLength(1000)
-    ),
-].map((command) => command.toJSON());
+    .setName('suggest')
+    .setDescription('Make a suggestion')
+];
 
 /* =========================
    READY
 ========================= */
 
-client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}`);
+client.once('ready', async () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
 
-  await client.application.commands.set(commands);
+  try {
+    await client.application.commands.set(
+      commands.map(c => c.toJSON())
+    );
 
-  console.log("Slash commands registered.");
+    console.log('✅ Slash commands registered.');
+  } catch (err) {
+    console.error('Command registration error:', err);
+  }
 });
 
 /* =========================
    INTERACTIONS
 ========================= */
 
-client.on("interactionCreate", async (interaction) => {
+client.on('interactionCreate', async interaction => {
   try {
-    /* =========================
-       BUTTONS
-    ========================= */
 
-    if (interaction.isButton()) {
-      /* ROLE BUTTON */
-      if (interaction.customId.startsWith("role_")) {
-        const encoded = interaction.customId.replace("role_", "");
+    /* =====================
+       SELF ROLES
+    ===================== */
 
-        let roleName;
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith('selfrole_')
+    ) {
+      const encoded = interaction.customId.replace(
+        'selfrole_',
+        ''
+      );
 
-        try {
-          roleName = Buffer.from(encoded, "base64").toString("utf8");
-        } catch {
-          return interaction.reply({
-            content: "❌ Invalid role button.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
+      const roleName = Buffer.from(
+        encoded,
+        'base64'
+      ).toString('utf8');
 
-        if (!SELF_ROLES.includes(roleName)) {
-          return interaction.reply({
-            content: "❌ That role isn't selectable.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
+      const role = getRole(interaction.guild, roleName);
 
-        const role = findRole(interaction.guild, roleName);
-
-        if (!role) {
-          return interaction.reply({
-            content: `❌ The role \`${roleName}\` doesn't exist yet. Ask the owner to create it.`,
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        if (interaction.member.roles.cache.has(role.id)) {
-          await interaction.member.roles.remove(role);
-
-          return interaction.reply({
-            content: `Removed **${roleName}**.`,
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        await interaction.member.roles.add(role);
-
+      if (!role) {
         return interaction.reply({
-          content: `Added **${roleName}** ♡`,
-          flags: MessageFlags.Ephemeral,
+          content: '❌ That role does not exist.',
+          ephemeral: true
         });
       }
 
-      /* =========================
-         SUPPORT TICKET
-      ========================= */
-
-      if (interaction.customId === "open_support") {
-        const existing = interaction.guild.channels.cache.find(
-          (c) =>
-            c.name === `ticket-${interaction.user.id}` ||
-            c.name === `support-${interaction.user.id}`
-        );
-
-        if (existing) {
-          return interaction.reply({
-            content: `❌ You already have a ticket: ${existing}`,
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        const category = interaction.guild.channels.cache.find(
-          (c) =>
-            c.type === ChannelType.GuildCategory &&
-            c.name === CATEGORY_NAMES.TICKETS
-        );
-
-        if (!category) {
-          return interaction.reply({
-            content: "❌ Ticket category doesn't exist. Run `/resetserver`.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        const overwrites = [
-          {
-            id: interaction.guild.roles.everyone.id,
-            deny: [PermissionsBitField.Flags.ViewChannel],
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages,
-              PermissionsBitField.Flags.ReadMessageHistory,
-              PermissionsBitField.Flags.AttachFiles,
-            ],
-          },
-        ];
-
-        for (const roleId of getStaffRoleIds(interaction.guild)) {
-          overwrites.push({
-            id: roleId,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages,
-              PermissionsBitField.Flags.ReadMessageHistory,
-            ],
-          });
-        }
-
-        const channel = await interaction.guild.channels.create({
-          name: `ticket-${interaction.user.id}`,
-          type: ChannelType.GuildText,
-          parent: category.id,
-          permissionOverwrites: overwrites,
-          topic: `Support ticket | ${interaction.user.id}`,
-        });
-
-        await channel.send({
-          content: `<@${interaction.user.id}>`,
-          embeds: [
-            baseEmbed(
-              "🎫・support ticket",
-              "Thanks for opening a ticket!\n\nPlease explain what you need help with. A staff member will respond as soon as possible."
-            ),
-          ],
-          components: [
-            new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId("close_ticket")
-                .setLabel("Close Ticket")
-                .setEmoji("🔒")
-                .setStyle(ButtonStyle.Danger)
-            ),
-          ],
-        });
+      if (interaction.member.roles.cache.has(role.id)) {
+        await interaction.member.roles.remove(role);
 
         return interaction.reply({
-          content: `🎫 Your ticket has been created: ${channel}`,
-          flags: MessageFlags.Ephemeral,
+          content: `♡ Removed **${role.name}**`,
+          ephemeral: true
         });
       }
 
-      /* =========================
-         PARTNERSHIP TICKET
-      ========================= */
+      await interaction.member.roles.add(role);
 
-      if (interaction.customId === "open_partnership") {
-        const existing = interaction.guild.channels.cache.find(
-          (c) => c.name === `partner-${interaction.user.id}`
-        );
+      return interaction.reply({
+        content: `♡ Added **${role.name}**`,
+        ephemeral: true
+      });
+    }
 
-        if (existing) {
-          return interaction.reply({
-            content: `❌ You already have a partnership ticket: ${existing}`,
-            flags: MessageFlags.Ephemeral,
-          });
-        }
+    /* =====================
+       SUPPORT TICKET
+    ===================== */
 
-        const category = interaction.guild.channels.cache.find(
-          (c) =>
-            c.type === ChannelType.GuildCategory &&
-            c.name === CATEGORY_NAMES.TICKETS
-        );
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'open_support'
+    ) {
+      const category = interaction.guild.channels.cache.get(
+        data.channels?.ticketCategory
+      );
 
-        if (!category) {
-          return interaction.reply({
-            content: "❌ Ticket category doesn't exist. Run `/resetserver`.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        const overwrites = [
-          {
-            id: interaction.guild.roles.everyone.id,
-            deny: [PermissionsBitField.Flags.ViewChannel],
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages,
-              PermissionsBitField.Flags.ReadMessageHistory,
-              PermissionsBitField.Flags.AttachFiles,
-            ],
-          },
-        ];
-
-        for (const roleId of getStaffRoleIds(interaction.guild)) {
-          overwrites.push({
-            id: roleId,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages,
-              PermissionsBitField.Flags.ReadMessageHistory,
-            ],
-          });
-        }
-
-        const channel = await interaction.guild.channels.create({
-          name: `partner-${interaction.user.id}`,
-          type: ChannelType.GuildText,
-          parent: category.id,
-          permissionOverwrites: overwrites,
-          topic: `Partnership application | ${interaction.user.id}`,
-        });
-
-        await channel.send({
-          content: `<@${interaction.user.id}>`,
-          embeds: [
-            baseEmbed(
-              "🤝・partnership application",
-              [
-                "Please send the following information:",
-                "",
-                "**Server name:**",
-                "**Server invite:**",
-                "**Member count:**",
-                "**What is your server about?**",
-                "**Why should we partner?**",
-                "",
-                "A staff member will review your application.",
-              ].join("\n")
-            ),
-          ],
-          components: [
-            new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId("close_partnership")
-                .setLabel("Close Application")
-                .setEmoji("🔒")
-                .setStyle(ButtonStyle.Danger)
-            ),
-          ],
-        });
-
+      if (!category) {
         return interaction.reply({
-          content: `🤝 Your partnership ticket has been created: ${channel}`,
-          flags: MessageFlags.Ephemeral,
+          content: '❌ Ticket category is missing.',
+          ephemeral: true
         });
       }
 
-      /* =========================
-         CLOSE TICKET
-      ========================= */
+      const existing = interaction.guild.channels.cache.find(
+        c => c.name === `ticket-${interaction.user.id}`
+      );
 
-      if (
-        interaction.customId === "close_ticket" ||
-        interaction.customId === "close_partnership"
-      ) {
-        if (!isStaff(interaction.member)) {
-          if (
-            interaction.channel.topic &&
-            !interaction.channel.topic.includes(
-              interaction.user.id
+      if (existing) {
+        return interaction.reply({
+          content: `You already have a ticket: ${existing}`,
+          ephemeral: true
+        });
+      }
+
+      const overwrites = [
+        {
+          id: interaction.guild.roles.everyone.id,
+          deny: [PermissionsBitField.Flags.ViewChannel]
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.ReadMessageHistory
+          ]
+        }
+      ];
+
+      for (const role of getStaffRoles(interaction.guild)) {
+        overwrites.push({
+          id: role.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.ReadMessageHistory
+          ]
+        });
+      }
+
+      const ticket = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.id}`,
+        type: ChannelType.GuildText,
+        parent: category.id,
+        permissionOverwrites: overwrites
+      });
+
+      const close = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('close_ticket')
+          .setLabel('close ticket')
+          .setEmoji('🔒')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await ticket.send({
+        content: `${interaction.user}`,
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xffb6d9)
+            .setTitle('୨୧・ support ticket')
+            .setDescription(
+              'tell staff what you need help with ♡\n\n' +
+              'please be patient while someone responds.'
             )
-          ) {
-            return interaction.reply({
-              content: "❌ You cannot close this ticket.",
-              flags: MessageFlags.Ephemeral,
-            });
-          }
-        }
+        ],
+        components: [close]
+      });
 
-        await interaction.reply({
-          content: "🔒 Closing ticket...",
-        });
-
-        setTimeout(async () => {
-          try {
-            await interaction.channel.delete("Ticket closed");
-          } catch {}
-        }, 1000);
-
-        return;
-      }
-
-      /* =========================
-         CONFESSION MODAL
-      ========================= */
-
-      if (interaction.customId === "open_confession") {
-        const modal = new ModalBuilder()
-          .setCustomId("confession_modal")
-          .setTitle("Anonymous Confession");
-
-        const input = new TextInputBuilder()
-          .setCustomId("confession")
-          .setLabel("Your confession")
-          .setPlaceholder("Say something anonymously...")
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(true)
-          .setMaxLength(1000);
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(input)
-        );
-
-        return interaction.showModal(modal);
-      }
-
-      /* =========================
-         SUGGESTION MODAL
-      ========================= */
-
-      if (interaction.customId === "open_suggestion") {
-        const modal = new ModalBuilder()
-          .setCustomId("suggestion_modal")
-          .setTitle("Server Suggestion");
-
-        const input = new TextInputBuilder()
-          .setCustomId("suggestion")
-          .setLabel("Your suggestion")
-          .setPlaceholder("What should we add or change?")
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(true)
-          .setMaxLength(1000);
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(input)
-        );
-
-        return interaction.showModal(modal);
-      }
+      return interaction.reply({
+        content: `🎫 Your ticket has been created: ${ticket}`,
+        ephemeral: true
+      });
     }
 
-    /* =========================
+    /* =====================
+       CLOSE TICKET
+    ===================== */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'close_ticket'
+    ) {
+      if (!isStaff(interaction.member)) {
+        return interaction.reply({
+          content: '❌ Only staff can close tickets.',
+          ephemeral: true
+        });
+      }
+
+      await interaction.reply({
+        content: '🔒 Closing ticket...'
+      });
+
+      setTimeout(() => {
+        interaction.channel.delete().catch(() => {});
+      }, 1500);
+
+      return;
+    }
+
+    /* =====================
+       PARTNERSHIP
+    ===================== */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'open_partnership'
+    ) {
+      const modal = new ModalBuilder()
+        .setCustomId('partnership_modal')
+        .setTitle('Partnership Application');
+
+      const server = new TextInputBuilder()
+        .setCustomId('server')
+        .setLabel('Server name')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const members = new TextInputBuilder()
+        .setCustomId('members')
+        .setLabel('Member count')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const invite = new TextInputBuilder()
+        .setCustomId('invite')
+        .setLabel('Invite link')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(server),
+        new ActionRowBuilder().addComponents(members),
+        new ActionRowBuilder().addComponents(invite)
+      );
+
+      return interaction.showModal(modal);
+    }
+
+    if (
+      interaction.isModalSubmit() &&
+      interaction.customId === 'partnership_modal'
+    ) {
+      const category = interaction.guild.channels.cache.get(
+        data.channels?.ticketCategory
+      );
+
+      if (!category) {
+        return interaction.reply({
+          content: '❌ Ticket category is missing.',
+          ephemeral: true
+        });
+      }
+
+      const channel = await interaction.guild.channels.create({
+        name: `partner-${interaction.user.id}`,
+        type: ChannelType.GuildText,
+        parent: category.id,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.roles.everyone.id,
+            deny: [PermissionsBitField.Flags.ViewChannel]
+          },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ]
+          },
+          ...getStaffRoles(interaction.guild).map(role => ({
+            id: role.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ]
+          }))
+        ]
+      });
+
+      await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xffb6d9)
+            .setTitle('୨୧・ partnership application')
+            .setDescription(
+              `**Server:** ${interaction.fields.getTextInputValue('server')}\n` +
+              `**Members:** ${interaction.fields.getTextInputValue('members')}\n` +
+              `**Invite:** ${interaction.fields.getTextInputValue('invite')}\n\n` +
+              `**Applicant:** ${interaction.user}`
+            )
+        ]
+      });
+
+      return interaction.reply({
+        content: `💜 Application created: ${channel}`,
+        ephemeral: true
+      });
+    }
+
+    /* =====================
+       CONFESSION BUTTON
+    ===================== */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'open_confession'
+    ) {
+      const modal = new ModalBuilder()
+        .setCustomId('confession_modal')
+        .setTitle('Anonymous Confession');
+
+      const input = new TextInputBuilder()
+        .setCustomId('confession')
+        .setLabel('Your confession')
+        .setStyle(TextInputStyle.Paragraph)
+        .setMaxLength(1000)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(input)
+      );
+
+      return interaction.showModal(modal);
+    }
+
+    /* =====================
+       SUGGESTION BUTTON
+    ===================== */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'open_suggestion'
+    ) {
+      const modal = new ModalBuilder()
+        .setCustomId('suggestion_modal')
+        .setTitle('Server Suggestion');
+
+      const input = new TextInputBuilder()
+        .setCustomId('suggestion')
+        .setLabel('Your suggestion')
+        .setStyle(TextInputStyle.Paragraph)
+        .setMaxLength(1000)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(input)
+      );
+
+      return interaction.showModal(modal);
+    }
+
+    /* =====================
        MODALS
-    ========================= */
+    ===================== */
 
-    if (interaction.isModalSubmit()) {
-      if (interaction.customId === "confession_modal") {
-        const message =
-          interaction.fields.getTextInputValue("confession");
+    if (
+      interaction.isModalSubmit() &&
+      interaction.customId === 'confession_modal'
+    ) {
+      const channel = getChannel(
+        interaction.guild,
+        '୨୧・confessions'
+      );
 
-        const channel =
-          findChannel(
-            interaction.guild,
-            CHANNELS.confessions
-          );
-
-        if (!channel) {
-          return interaction.reply({
-            content: "❌ Confessions channel doesn't exist.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
+      if (channel) {
         await channel.send({
           embeds: [
             new EmbedBuilder()
-              .setTitle("🤫・anonymous confession")
-              .setDescription(message)
-              .setFooter({ text: "Anonymous" })
-              .setTimestamp(),
-          ],
-        });
-
-        return interaction.reply({
-          content: "♡ Your confession was sent anonymously.",
-          flags: MessageFlags.Ephemeral,
+              .setColor(0xffb6d9)
+              .setTitle('💌・ anonymous confession')
+              .setDescription(
+                interaction.fields.getTextInputValue(
+                  'confession'
+                )
+              )
+          ]
         });
       }
 
-      if (interaction.customId === "suggestion_modal") {
-        const message =
-          interaction.fields.getTextInputValue("suggestion");
-
-        const channel =
-          findChannel(
-            interaction.guild,
-            CHANNELS.suggestions
-          );
-
-        if (!channel) {
-          return interaction.reply({
-            content: "❌ Suggestions channel doesn't exist.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        const sent = await channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle("💡・new suggestion")
-              .setDescription(message)
-              .setFooter({
-                text: `Suggested by ${interaction.user.username}`,
-              })
-              .setTimestamp(),
-          ],
-        });
-
-        await sent.react("👍");
-        await sent.react("👎");
-
-        return interaction.reply({
-          content: "💡 Your suggestion was posted.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
+      return interaction.reply({
+        content: '💌 Your confession was sent anonymously.',
+        ephemeral: true
+      });
     }
 
-    /* =========================
-       CHAT COMMANDS
-    ========================= */
+    if (
+      interaction.isModalSubmit() &&
+      interaction.customId === 'suggestion_modal'
+    ) {
+      const channel = getChannel(
+        interaction.guild,
+        '୨୧・suggestions'
+      );
+
+      if (channel) {
+        const message = await channel.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xffb6d9)
+              .setTitle('💡・ suggestion')
+              .setDescription(
+                interaction.fields.getTextInputValue(
+                  'suggestion'
+                )
+              )
+              .setFooter({
+                text: `suggested by ${interaction.user.tag}`
+              })
+          ]
+        });
+
+        await message.react('👍');
+        await message.react('👎');
+      }
+
+      return interaction.reply({
+        content: '💡 Suggestion submitted!',
+        ephemeral: true
+      });
+    }
+
+    /* =====================
+       SLASH COMMANDS
+    ===================== */
 
     if (!interaction.isChatInputCommand()) return;
 
-    if (interaction.commandName === "resetserver") {
-      if (interaction.user.id !== interaction.guild.ownerId) {
+    const command = interaction.commandName;
+
+    /* RESET */
+
+    if (command === 'resetserver') {
+      if (!isOwner(interaction.member)) {
         return interaction.reply({
-          content: "❌ Only the server owner can use this.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ Only the server owner can use this.',
+          ephemeral: true
         });
       }
 
       await interaction.deferReply({
-        flags: MessageFlags.Ephemeral,
+        ephemeral: true
       });
 
       await resetServer(interaction.guild);
 
       await interaction.editReply(
-        "✅ Server completely rebuilt.\n\n♡ Channels created\n♡ Tickets configured\n♡ Panels installed\n♡ Permissions configured"
+        '✅ Server completely rebuilt!'
       );
-
-      setTimeout(async () => {
-        try {
-          await interaction.deleteReply();
-        } catch {}
-      }, 3000);
 
       return;
     }
 
-    /* =========================
-       MODERATION CHECK
-    ========================= */
+    /* COINFLIP */
 
-    const moderationCommands = [
-      "kick",
-      "timeout",
-      "warn",
-      "warnings",
-      "clear",
-    ];
+    if (command === 'coinflip') {
+      return interaction.reply(
+        Math.random() < 0.5
+          ? '🪙 **Heads!**'
+          : '🪙 **Tails!**'
+      );
+    }
 
-    if (moderationCommands.includes(interaction.commandName)) {
+    /* ROLL */
+
+    if (command === 'roll') {
+      return interaction.reply(
+        `🎲 You rolled **${Math.floor(Math.random() * 6) + 1}**!`
+      );
+    }
+
+    /* 8BALL */
+
+    if (command === '8ball') {
+      const answers = [
+        'yes ♡',
+        'no 😭',
+        'probably',
+        'probably not',
+        'absolutely',
+        'ask again later',
+        'i have no idea 💀'
+      ];
+
+      return interaction.reply(
+        `🎱 ${answers[Math.floor(Math.random() * answers.length)]}`
+      );
+    }
+
+    /* RPS */
+
+    if (command === 'rps') {
+      const userChoice = interaction.options.getString('choice');
+
+      const choices = ['rock', 'paper', 'scissors'];
+      const botChoice =
+        choices[Math.floor(Math.random() * choices.length)];
+
+      let result;
+
+      if (userChoice === botChoice) {
+        result = 'tie 😭';
+      } else if (
+        (userChoice === 'rock' && botChoice === 'scissors') ||
+        (userChoice === 'paper' && botChoice === 'rock') ||
+        (userChoice === 'scissors' && botChoice === 'paper')
+      ) {
+        result = 'you win! ♡';
+      } else {
+        result = 'i win 😼';
+      }
+
+      return interaction.reply(
+        `🪨📄✂️ You chose **${userChoice}**.\n` +
+        `I chose **${botChoice}**.\n\n` +
+        `**${result}**`
+      );
+    }
+
+    /* WOULD YOU RATHER */
+
+    if (command === 'wouldyourather') {
+      const questions = [
+        'Would you rather be able to fly or become invisible?',
+        'Would you rather have unlimited money or unlimited free time?',
+        'Would you rather live in the city or the countryside?',
+        'Would you rather never use TikTok again or never use Discord again?',
+        'Would you rather always be 10 minutes late or 20 minutes early?'
+      ];
+
+      return interaction.reply(
+        `🤔 **Would you rather...**\n\n${
+          questions[Math.floor(Math.random() * questions.length)]
+        }`
+      );
+    }
+
+    /* TRIVIA */
+
+    if (command === 'trivia') {
+      const trivia = [
+        ['What planet is known as the Red Planet?', 'Mars'],
+        ['How many continents are there?', '7'],
+        ['What is the largest ocean?', 'Pacific Ocean'],
+        ['What animal is known as the king of the jungle?', 'Lion']
+      ];
+
+      const q =
+        trivia[Math.floor(Math.random() * trivia.length)];
+
+      return interaction.reply(
+        `🧠 **Trivia:** ${q[0]}\n\nAnswer: ||${q[1]}||`
+      );
+    }
+
+    /* RANK */
+
+    if (command === 'rank') {
+      const xp = data.xp[interaction.user.id] || 0;
+      const level = Math.floor(xp / 100) + 1;
+      const progress = xp % 100;
+
+      return interaction.reply(
+        `⭐ **${interaction.user.username}**\n\n` +
+        `Level: **${level}**\n` +
+        `XP: **${progress}/100**`
+      );
+    }
+
+    /* LEADERBOARD */
+
+    if (command === 'leaderboard') {
+      const entries = Object.entries(data.xp)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      let text = '';
+
+      for (let i = 0; i < entries.length; i++) {
+        const [id, xp] = entries[i];
+        const member = interaction.guild.members.cache.get(id);
+
+        text += `**${i + 1}.** ${
+          member?.user.username || 'Unknown'
+        } — ${xp} XP\n`;
+      }
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xffb6d9)
+            .setTitle('୨୧・ leaderboard')
+            .setDescription(text || 'Nobody has XP yet!')
+        ]
+      });
+    }
+
+    /* PROFILE */
+
+    if (command === 'profile') {
+      const xp = data.xp[interaction.user.id] || 0;
+      const level = Math.floor(xp / 100) + 1;
+      const bio = data.bios[interaction.user.id] || 'No bio set.';
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xffb6d9)
+            .setTitle(`୨୧・ ${interaction.user.username}`)
+            .setDescription(
+              `**Bio**\n${bio}\n\n` +
+              `⭐ **Level:** ${level}\n` +
+              `✨ **XP:** ${xp}`
+            )
+        ]
+      });
+    }
+
+    /* SET BIO */
+
+    if (command === 'setbio') {
+      const bio = interaction.options.getString('bio');
+
+      data.bios[interaction.user.id] = bio;
+      saveData();
+
+      return interaction.reply({
+        content: '♡ Bio updated!',
+        ephemeral: true
+      });
+    }
+
+    /* FRIEND */
+
+    if (command === 'friend') {
+      const user = interaction.options.getUser('user');
+
+      if (!data.friends[interaction.user.id]) {
+        data.friends[interaction.user.id] = [];
+      }
+
+      if (!data.friends[interaction.user.id].includes(user.id)) {
+        data.friends[interaction.user.id].push(user.id);
+      }
+
+      saveData();
+
+      return interaction.reply(
+        `🫶 **${user.username}** was added to your friends!`
+      );
+    }
+
+    /* FRIENDS */
+
+    if (command === 'friends') {
+      const friends =
+        data.friends[interaction.user.id] || [];
+
+      if (!friends.length) {
+        return interaction.reply(
+          'You don't have any friends added yet 😭'
+        );
+      }
+
+      const names = friends
+        .map(id => interaction.guild.members.cache.get(id)?.user.username)
+        .filter(Boolean);
+
+      return interaction.reply(
+        `🫶 **Your friends:**\n${names.join('\n')}`
+      );
+    }
+
+    /* =====================
+       MODERATION
+    ===================== */
+
+    if (
+      ['ban', 'kick', 'timeout', 'warn', 'warnings', 'clear']
+        .includes(command)
+    ) {
       if (!isStaff(interaction.member)) {
         return interaction.reply({
-          content: "❌ You need a staff role to use this.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ You need a staff role to use this.',
+          ephemeral: true
         });
       }
     }
 
-    /* =========================
-       BAN
-    ========================= */
+    /* BAN */
 
-    if (interaction.commandName === "ban") {
-      if (interaction.user.id !== interaction.guild.ownerId) {
+    if (command === 'ban') {
+      if (!isOwner(interaction.member)) {
         return interaction.reply({
-          content: "❌ Only the server owner can ban members.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ Only the owner can ban members.',
+          ephemeral: true
         });
       }
 
-      const user = interaction.options.getUser("user");
+      const user = interaction.options.getUser('user');
       const reason =
-        interaction.options.getString("reason") ||
-        "No reason provided";
+        interaction.options.getString('reason') ||
+        'No reason provided';
 
       const member =
         await interaction.guild.members
           .fetch(user.id)
           .catch(() => null);
 
-      if (member && !canModerateTarget(interaction.member, member)) {
+      if (member && member.id === interaction.guild.ownerId) {
         return interaction.reply({
-          content: "❌ You cannot ban that member.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ You cannot ban the server owner.',
+          ephemeral: true
         });
       }
 
       await interaction.guild.members.ban(user.id, {
-        reason,
+        reason
       });
 
       return interaction.reply(
-        `🔨 **${user.tag}** has been banned.\nReason: ${reason}`
+        `🔨 Banned **${user.tag}**`
       );
     }
 
-    /* =========================
-       KICK
-    ========================= */
+    /* KICK */
 
-    if (interaction.commandName === "kick") {
-      const user = interaction.options.getUser("user");
-      const reason =
-        interaction.options.getString("reason") ||
-        "No reason provided";
-
+    if (command === 'kick') {
+      const user = interaction.options.getUser('user');
       const member =
         await interaction.guild.members
           .fetch(user.id)
@@ -1447,44 +1450,37 @@ client.on("interactionCreate", async (interaction) => {
 
       if (!member) {
         return interaction.reply({
-          content: "❌ That member isn't in the server.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ Member not found.',
+          ephemeral: true
         });
       }
 
-      if (!canModerateTarget(interaction.member, member)) {
+      if (
+        member.roles.highest.position >=
+        interaction.member.roles.highest.position
+      ) {
         return interaction.reply({
-          content: "❌ You cannot kick that member.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ You cannot moderate this member.',
+          ephemeral: true
         });
       }
 
-      if (!member.kickable) {
-        return interaction.reply({
-          content: "❌ My role is not high enough to kick them.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      await member.kick(reason);
+      await member.kick(
+        interaction.options.getString('reason') ||
+        'No reason provided'
+      );
 
       return interaction.reply(
-        `👢 **${user.tag}** has been kicked.\nReason: ${reason}`
+        `👢 Kicked **${user.tag}**`
       );
     }
 
-    /* =========================
-       TIMEOUT
-    ========================= */
+    /* TIMEOUT */
 
-    if (interaction.commandName === "timeout") {
-      const user = interaction.options.getUser("user");
+    if (command === 'timeout') {
+      const user = interaction.options.getUser('user');
       const minutes =
-        interaction.options.getInteger("minutes");
-
-      const reason =
-        interaction.options.getString("reason") ||
-        "No reason provided";
+        interaction.options.getInteger('minutes');
 
       const member =
         await interaction.guild.members
@@ -1493,52 +1489,38 @@ client.on("interactionCreate", async (interaction) => {
 
       if (!member) {
         return interaction.reply({
-          content: "❌ That member isn't in the server.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ Member not found.',
+          ephemeral: true
         });
       }
 
-      if (!canModerateTarget(interaction.member, member)) {
+      if (
+        member.roles.highest.position >=
+        interaction.member.roles.highest.position
+      ) {
         return interaction.reply({
-          content: "❌ You cannot timeout that member.",
-          flags: MessageFlags.Ephemeral,
+          content: '❌ You cannot timeout this member.',
+          ephemeral: true
         });
       }
 
-      if (!member.moderatable) {
-        return interaction.reply({
-          content: "❌ My role is not high enough to timeout them.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      await member.timeout(minutes * 60 * 1000, reason);
+      await member.timeout(
+        minutes * 60 * 1000,
+        interaction.options.getString('reason') ||
+        'No reason provided'
+      );
 
       return interaction.reply(
-        `⏱️ **${user.tag}** was timed out for **${minutes} minutes**.\nReason: ${reason}`
+        `⏰ Timed out **${user.tag}** for **${minutes} minutes**.`
       );
     }
 
-    /* =========================
-       WARN
-    ========================= */
+    /* WARN */
 
-    if (interaction.commandName === "warn") {
-      const user = interaction.options.getUser("user");
+    if (command === 'warn') {
+      const user = interaction.options.getUser('user');
       const reason =
-        interaction.options.getString("reason");
-
-      const member =
-        await interaction.guild.members
-          .fetch(user.id)
-          .catch(() => null);
-
-      if (member && !canModerateTarget(interaction.member, member)) {
-        return interaction.reply({
-          content: "❌ You cannot warn that member.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
+        interaction.options.getString('reason');
 
       if (!data.warnings[user.id]) {
         data.warnings[user.id] = [];
@@ -1547,497 +1529,117 @@ client.on("interactionCreate", async (interaction) => {
       data.warnings[user.id].push({
         reason,
         moderator: interaction.user.id,
-        date: new Date().toISOString(),
+        date: Date.now()
       });
 
       saveData();
 
       return interaction.reply(
-        `⚠️ **${user.tag}** has been warned.\nReason: ${reason}`
+        `⚠️ Warned **${user.tag}**\nReason: ${reason}`
       );
     }
 
-    /* =========================
-       WARNINGS
-    ========================= */
+    /* WARNINGS */
 
-    if (interaction.commandName === "warnings") {
-      const user =
-        interaction.options.getUser("user");
+    if (command === 'warnings') {
+      const user = interaction.options.getUser('user');
 
       const warnings = data.warnings[user.id] || [];
 
       if (!warnings.length) {
         return interaction.reply(
-          `**${user.tag}** has no warnings.`
+          `✅ **${user.tag}** has no warnings.`
         );
       }
 
       const text = warnings
         .map(
           (w, i) =>
-            `**${i + 1}.** ${w.reason}\nModerator: <@${w.moderator}>`
+            `**${i + 1}.** ${w.reason}`
         )
-        .join("\n\n");
+        .join('\n');
 
       return interaction.reply({
         embeds: [
-          baseEmbed(
-            `⚠️・warnings for ${user.username}`,
-            text
-          ),
-        ],
-        flags: MessageFlags.Ephemeral,
+          new EmbedBuilder()
+            .setColor(0xffb6d9)
+            .setTitle(`⚠️・ ${user.tag}'s warnings`)
+            .setDescription(text)
+        ]
       });
     }
 
-    /* =========================
-       CLEAR
-    ========================= */
+    /* CLEAR */
 
-    if (interaction.commandName === "clear") {
-      if (
-        !interaction.member.permissions.has(
-          PermissionsBitField.Flags.ManageMessages
-        )
-      ) {
-        return interaction.reply({
-          content: "❌ You need Manage Messages.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
+    if (command === 'clear') {
       const amount =
-        interaction.options.getInteger("amount");
+        interaction.options.getInteger('amount');
 
-      await interaction.channel.bulkDelete(amount, true);
-
-      return interaction.reply({
-        content: `🧹 Deleted **${amount}** messages.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    /* =========================
-       COINFLIP
-    ========================= */
-
-    if (interaction.commandName === "coinflip") {
-      const result =
-        Math.random() < 0.5 ? "Heads 🪙" : "Tails 🪙";
-
-      return interaction.reply(
-        `🪙 The coin landed on **${result}**!`
+      await interaction.channel.bulkDelete(
+        amount,
+        true
       );
+
+      return interaction.reply({
+        content: `🧹 Deleted **${amount} messages**.`,
+        ephemeral: true
+      });
     }
 
-    /* =========================
-       ROLL
-    ========================= */
+    /* CONFESS COMMAND */
 
-    if (interaction.commandName === "roll") {
-      const number =
-        Math.floor(Math.random() * 6) + 1;
+    if (command === 'confess') {
+      const modal = new ModalBuilder()
+        .setCustomId('confession_modal')
+        .setTitle('Anonymous Confession');
 
-      return interaction.reply(
-        `🎲 You rolled **${number}**!`
+      const input = new TextInputBuilder()
+        .setCustomId('confession')
+        .setLabel('Your confession')
+        .setStyle(TextInputStyle.Paragraph)
+        .setMaxLength(1000)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(input)
       );
+
+      return interaction.showModal(modal);
     }
 
-    /* =========================
-       8BALL
-    ========================= */
+    /* SUGGEST COMMAND */
 
-    if (interaction.commandName === "8ball") {
-      const answers = [
-        "Yes.",
-        "Definitely.",
-        "Probably.",
-        "Maybe.",
-        "Ask again later.",
-        "I don't think so.",
-        "No.",
-        "Absolutely not.",
-      ];
+    if (command === 'suggest') {
+      const modal = new ModalBuilder()
+        .setCustomId('suggestion_modal')
+        .setTitle('Server Suggestion');
 
-      const answer =
-        answers[Math.floor(Math.random() * answers.length)];
+      const input = new TextInputBuilder()
+        .setCustomId('suggestion')
+        .setLabel('Your suggestion')
+        .setStyle(TextInputStyle.Paragraph)
+        .setMaxLength(1000)
+        .setRequired(true);
 
-      return interaction.reply(
-        `🎱 **8ball:** ${answer}`
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(input)
       );
+
+      return interaction.showModal(modal);
     }
 
-    /* =========================
-       RPS
-    ========================= */
+  } catch (err) {
+    console.error('Interaction error:', err);
 
-    if (interaction.commandName === "rps") {
-      const choice =
-        interaction.options.getString("choice");
-
-      const choices = ["rock", "paper", "scissors"];
-
-      const botChoice =
-        choices[Math.floor(Math.random() * choices.length)];
-
-      let result;
-
-      if (choice === botChoice) {
-        result = "It's a tie! 🤝";
-      } else if (
-        (choice === "rock" && botChoice === "scissors") ||
-        (choice === "paper" && botChoice === "rock") ||
-        (choice === "scissors" && botChoice === "paper")
-      ) {
-        result = "You win! 🎉";
-      } else {
-        result = "I win! 😼";
-      }
-
-      return interaction.reply(
-        `You chose **${choice}**.\nI chose **${botChoice}**.\n\n${result}`
-      );
-    }
-
-    /* =========================
-       WOULD YOU RATHER
-    ========================= */
-
-    if (interaction.commandName === "wouldyourather") {
-      const questions = [
-        "Would you rather be able to fly or become invisible?",
-        "Would you rather never use TikTok again or never use Discord again?",
-        "Would you rather have unlimited money or unlimited free time?",
-        "Would you rather live at the beach or in the mountains?",
-        "Would you rather always be early or always be late?",
-      ];
-
-      return interaction.reply(
-        `💭 **Would you rather...**\n\n${
-          questions[Math.floor(Math.random() * questions.length)]
-        }`
-      );
-    }
-
-    /* =========================
-       TRIVIA
-    ========================= */
-
-    if (interaction.commandName === "trivia") {
-      const questions = [
-        {
-          q: "What planet is known as the Red Planet?",
-          a: "Mars",
-        },
-        {
-          q: "How many continents are there?",
-          a: "7",
-        },
-        {
-          q: "What is the largest ocean?",
-          a: "Pacific Ocean",
-        },
-        {
-          q: "What is the fastest land animal?",
-          a: "Cheetah",
-        },
-      ];
-
-      const question =
-        questions[
-          Math.floor(Math.random() * questions.length)
-        ];
-
-      return interaction.reply({
-        embeds: [
-          baseEmbed(
-            "🧠・trivia",
-            `${question.q}\n\nAnswer: **${question.a}**`
-          ),
-        ],
-      });
-    }
-
-    /* =========================
-       RANK
-    ========================= */
-
-    if (interaction.commandName === "rank") {
-      const user =
-        interaction.options.getUser("user") ||
-        interaction.user;
-
-      const stats = getXP(user.id);
-
-      return interaction.reply({
-        embeds: [
-          baseEmbed(
-            `⭐・${user.username}'s rank`,
-            [
-              `**Level:** ${stats.level}`,
-              `**XP:** ${stats.xp}`,
-              `**Next level:** ${xpNeeded(stats.level)} XP`,
-            ].join("\n")
-          ),
-        ],
-      });
-    }
-
-    /* =========================
-       LEADERBOARD
-    ========================= */
-
-    if (interaction.commandName === "leaderboard") {
-      const sorted = Object.entries(data.xp)
-        .sort((a, b) => b[1].xp - a[1].xp)
-        .slice(0, 10);
-
-      if (!sorted.length) {
-        return interaction.reply(
-          "⭐ Nobody has earned XP yet."
-        );
-      }
-
-      const lines = [];
-
-      for (let i = 0; i < sorted.length; i++) {
-        const [userId, stats] = sorted[i];
-
-        lines.push(
-          `**${i + 1}.** <@${userId}> — Level ${stats.level} • ${stats.xp} XP`
-        );
-      }
-
-      return interaction.reply({
-        embeds: [
-          baseEmbed(
-            "🏆・leaderboard",
-            lines.join("\n")
-          ),
-        ],
-      });
-    }
-
-    /* =========================
-       PROFILE
-    ========================= */
-
-    if (interaction.commandName === "profile") {
-      const user =
-        interaction.options.getUser("user") ||
-        interaction.user;
-
-      const stats = getXP(user.id);
-
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(`♡ ${user.username}`)
-            .setThumbnail(user.displayAvatarURL())
-            .setDescription(
-              data.bios[user.id] ||
-                "No bio set yet."
-            )
-            .addFields(
-              {
-                name: "Level",
-                value: `${stats.level}`,
-                inline: true,
-              },
-              {
-                name: "XP",
-                value: `${stats.xp}`,
-                inline: true,
-              },
-              {
-                name: "Friends",
-                value: `${(data.friends[user.id] || []).length}`,
-                inline: true,
-              }
-            )
-            .setTimestamp(),
-        ],
-      });
-    }
-
-    /* =========================
-       SET BIO
-    ========================= */
-
-    if (interaction.commandName === "setbio") {
-      const bio =
-        interaction.options.getString("bio");
-
-      data.bios[interaction.user.id] = bio;
-
-      saveData();
-
-      return interaction.reply({
-        content: "♡ Your bio has been updated.",
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    /* =========================
-       FRIEND
-    ========================= */
-
-    if (interaction.commandName === "friend") {
-      const user =
-        interaction.options.getUser("user");
-
-      if (user.id === interaction.user.id) {
-        return interaction.reply({
-          content: "❌ You can't add yourself.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      if (!data.friends[interaction.user.id]) {
-        data.friends[interaction.user.id] = [];
-      }
-
-      if (
-        data.friends[interaction.user.id].includes(
-          user.id
-        )
-      ) {
-        return interaction.reply({
-          content: "❌ They're already on your friends list.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      data.friends[interaction.user.id].push(user.id);
-
-      saveData();
-
-      return interaction.reply(
-        `♡ Added **${user.username}** to your friends list!`
-      );
-    }
-
-    /* =========================
-       FRIENDS
-    ========================= */
-
-    if (interaction.commandName === "friends") {
-      const friends =
-        data.friends[interaction.user.id] || [];
-
-      if (!friends.length) {
-        return interaction.reply(
-          "♡ You don't have any friends added yet."
-        );
-      }
-
-      return interaction.reply({
-        embeds: [
-          baseEmbed(
-            "🫶・friends",
-            friends
-              .map((id) => `♡ <@${id}>`)
-              .join("\n")
-          ),
-        ],
-      });
-    }
-
-    /* =========================
-       CONFESS
-    ========================= */
-
-    if (interaction.commandName === "confess") {
-      const message =
-        interaction.options.getString("message");
-
-      const channel =
-        findChannel(
-          interaction.guild,
-          CHANNELS.confessions
-        );
-
-      if (!channel) {
-        return interaction.reply({
-          content: "❌ Confessions channel doesn't exist.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      await channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("🤫・anonymous confession")
-            .setDescription(message)
-            .setFooter({ text: "Anonymous" })
-            .setTimestamp(),
-        ],
-      });
-
-      return interaction.reply({
-        content: "♡ Your confession was sent anonymously.",
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    /* =========================
-       SUGGEST
-    ========================= */
-
-    if (interaction.commandName === "suggest") {
-      const message =
-        interaction.options.getString("suggestion");
-
-      const channel =
-        findChannel(
-          interaction.guild,
-          CHANNELS.suggestions
-        );
-
-      if (!channel) {
-        return interaction.reply({
-          content: "❌ Suggestions channel doesn't exist.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const sent = await channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("💡・new suggestion")
-            .setDescription(message)
-            .setFooter({
-              text: `Suggested by ${interaction.user.username}`,
-            })
-            .setTimestamp(),
-        ],
-      });
-
-      await sent.react("👍");
-      await sent.react("👎");
-
-      return interaction.reply({
-        content: "💡 Your suggestion was posted.",
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-  } catch (error) {
-    console.error("Interaction error:", error);
-
-    if (interaction.isRepliable()) {
-      try {
-        if (interaction.deferred) {
-          await interaction.editReply(
-            "❌ Something went wrong while running that."
-          );
-        } else if (!interaction.replied) {
-          await interaction.reply({
-            content: "❌ Something went wrong.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-      } catch {}
+    if (interaction.replied || interaction.deferred) {
+      await interaction.editReply({
+        content: '❌ Something went wrong.'
+      }).catch(() => {});
+    } else {
+      await interaction.reply({
+        content: '❌ Something went wrong.',
+        ephemeral: true
+      }).catch(() => {});
     }
   }
 });
@@ -2046,181 +1648,96 @@ client.on("interactionCreate", async (interaction) => {
    XP SYSTEM
 ========================= */
 
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-  if (!message.guild) return;
+const xpCooldown = new Map();
 
-  if (!data.xp[message.author.id]) {
-    data.xp[message.author.id] = {
-      xp: 0,
-      level: 0,
-      lastXP: 0,
-    };
-  }
-
-  const stats = data.xp[message.author.id];
+client.on('messageCreate', async message => {
+  if (
+    message.author.bot ||
+    !message.guild
+  ) return;
 
   const now = Date.now();
+  const last = xpCooldown.get(message.author.id) || 0;
 
-  if (now - (stats.lastXP || 0) < 60000) {
-    return;
-  }
+  if (now - last < 60000) return;
 
-  stats.lastXP = now;
+  xpCooldown.set(message.author.id, now);
 
-  const oldLevel = calculateLevel(stats.xp);
-
-  stats.xp += Math.floor(Math.random() * 11) + 10;
-
-  const newLevel = calculateLevel(stats.xp);
-
-  stats.level = newLevel;
+  data.xp[message.author.id] =
+    (data.xp[message.author.id] || 0) +
+    Math.floor(Math.random() * 11) + 10;
 
   saveData();
 
+  const xp = data.xp[message.author.id];
+  const oldLevel =
+    Math.floor((xp - 10) / 100) + 1;
+  const newLevel =
+    Math.floor(xp / 100) + 1;
+
   if (newLevel > oldLevel) {
     const levelChannel =
-      client.channels.cache.get(data.levelChannel);
+      getChannel(message.guild, '୨୧・levels');
 
     if (levelChannel) {
-      await levelChannel.send(
-        `🎉 <@${message.author.id}> just reached **Level ${newLevel}**!`
+      levelChannel.send(
+        `🎉 ${message.author} reached **Level ${newLevel}**! ♡`
       );
     }
+  }
+});
 
-    const levelRole = findRole(
-      message.guild,
-      `Level ${newLevel}`
+/* =========================
+   WELCOME
+========================= */
+
+client.on('guildMemberAdd', async member => {
+  const role = getRole(member.guild, 'Member');
+
+  if (role) {
+    await member.roles.add(role).catch(() => {});
+  }
+
+  const channel =
+    getChannel(member.guild, '୨୧・introductions');
+
+  if (channel) {
+    channel.send(
+      `🌸 Welcome ${member} to **${member.guild.name}**! ♡`
     );
-
-    if (levelRole) {
-      try {
-        await message.member.roles.add(levelRole);
-      } catch {}
-    }
   }
 });
 
 /* =========================
-   STARBOARD
+   BOOST
 ========================= */
 
-client.on("messageReactionAdd", async (reaction, user) => {
-  if (user.bot) return;
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+  if (!oldMember.premiumSince && newMember.premiumSince) {
+    const booster =
+      getRole(newMember.guild, '🌸・booster');
 
-  try {
-    if (reaction.partial) {
-      await reaction.fetch();
-    }
-
-    if (reaction.emoji.name !== "⭐") return;
-
-    if (reaction.count < 3) return;
-
-    const message = reaction.message;
-
-    if (message.partial) {
-      await message.fetch();
-    }
-
-    const starboard =
-      client.channels.cache.get(
-        data.starboardChannel
-      );
-
-    if (!starboard) return;
-
-    const key = `star_${message.id}`;
-
-    if (data[key]) return;
-
-    data[key] = true;
-    saveData();
-
-    await starboard.send({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("⭐・starboard")
-          .setDescription(message.content || "*No text*")
-          .addFields({
-            name: "Message",
-            value: `[Jump to message](${message.url})`,
-          })
-          .setAuthor({
-            name: message.author.username,
-            iconURL: message.author.displayAvatarURL(),
-          })
-          .setTimestamp(),
-      ],
-    });
-  } catch (error) {
-    console.error("Starboard error:", error);
-  }
-});
-
-/* =========================
-   MEMBER JOIN
-========================= */
-
-client.on("guildMemberAdd", async (member) => {
-  try {
-    const role = findRole(member.guild, MEMBER_ROLE);
-
-    if (role) {
-      await member.roles.add(role);
+    if (booster) {
+      await newMember.roles.add(booster).catch(() => {});
     }
 
     const channel =
-      findChannel(
-        member.guild,
-        CHANNELS.introductions
-      );
+      getChannel(newMember.guild, '୨୧・boosts');
 
     if (channel) {
-      await channel.send(
-        `♡ Welcome <@${member.id}> to **${member.guild.name}**!\n\nIntroduce yourself and say hi!`
+      channel.send(
+        `🌸 ${newMember} just boosted the server! Thank you ♡`
       );
     }
-  } catch (error) {
-    console.error("Welcome error:", error);
   }
-});
 
-/* =========================
-   BOOST SYSTEM
-========================= */
+  if (oldMember.premiumSince && !newMember.premiumSince) {
+    const booster =
+      getRole(newMember.guild, '🌸・booster');
 
-client.on("guildMemberUpdate", async (oldMember, newMember) => {
-  try {
-    const boosterRole =
-      findRole(newMember.guild, BOOSTER_ROLE);
-
-    if (!boosterRole) return;
-
-    const wasBoosting = Boolean(oldMember.premiumSince);
-    const isBoosting = Boolean(newMember.premiumSince);
-
-    if (!wasBoosting && isBoosting) {
-      await newMember.roles.add(boosterRole);
-
-      const channel =
-        findChannel(
-          newMember.guild,
-          CHANNELS.boosts
-        );
-
-      if (channel) {
-        await channel.send(
-          `🌸 Thank you <@${newMember.id}> for boosting the server! ♡`
-        );
-      }
+    if (booster) {
+      await newMember.roles.remove(booster).catch(() => {});
     }
-
-    if (wasBoosting && !isBoosting) {
-      await newMember.roles.remove(boosterRole);
-    }
-  } catch (error) {
-    console.error("Boost error:", error);
   }
 });
 
