@@ -8,7 +8,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  AttachmentBuilder
+  MessageFlags
 }=require("discord.js");
 const fs=require("fs");
 const path=require("path");
@@ -31,8 +31,9 @@ if(!fs.existsSync(DATA)) fs.mkdirSync(DATA);
 
 function load(name,def){
   const file=path.join(DATA,name);
-  try{return JSON.parse(fs.readFileSync(file,"utf8"))}
-  catch{
+  try{
+    return JSON.parse(fs.readFileSync(file,"utf8"));
+  }catch{
     fs.writeFileSync(file,JSON.stringify(def,null,2));
     return def;
   }
@@ -77,6 +78,12 @@ const LEVEL_ROLES=[
   ["୨୧・level 30",0x55bfff]
 ];
 
+const allRoleData=[
+  ...STAFF_ROLES,
+  ...SELF_ROLES,
+  ...LEVEL_ROLES
+];
+
 const CHANNELS={
   "001":[
     ["୨୧・rules",true],
@@ -98,8 +105,6 @@ const CHANNELS={
     ["୨୧・support",false]
   ]
 };
-
-const allRoleData=[...STAFF_ROLES,...SELF_ROLES,...LEVEL_ROLES];
 
 function profile(id){
   if(!profiles[id]){
@@ -124,12 +129,18 @@ function isOwner(member){
 
 function isStaff(member){
   return isOwner(member)||
-    member.roles.cache.some(r=>["🔨 Staff","🛡️ Moderator"].includes(r.name));
+    member.roles.cache.some(r=>[
+      "🔨 Staff",
+      "🛡️ Moderator"
+    ].includes(r.name));
 }
 
 function isModerator(member){
   return isOwner(member)||
-    member.roles.cache.some(r=>["🔨 Staff","🛡️ Moderator"].includes(r.name));
+    member.roles.cache.some(r=>[
+      "🔨 Staff",
+      "🛡️ Moderator"
+    ].includes(r.name));
 }
 
 async function getRole(guild,name){
@@ -150,8 +161,8 @@ async function createRoles(guild){
 
     if(!role){
       role=await guild.roles.create({
-        name,
-        color,
+        name:name,
+        color:color,
         reason:"Community server setup"
       });
     }
@@ -187,34 +198,18 @@ async function unlockChannel(channel){
 }
 
 async function createCategory(guild,name){
-  let category=guild.channels.cache.find(
-    c=>c.type===ChannelType.GuildCategory&&c.name===name
-  );
-
-  if(!category){
-    category=await guild.channels.create({
-      name,
-      type:ChannelType.GuildCategory
-    });
-  }
-
-  return category;
+  return await guild.channels.create({
+    name:name,
+    type:ChannelType.GuildCategory
+  });
 }
 
 async function createChannel(guild,category,name,locked){
-  let channel=guild.channels.cache.find(
-    c=>c.type===ChannelType.GuildText&&
-      c.name===name&&
-      c.parentId===category.id
-  );
-
-  if(!channel){
-    channel=await guild.channels.create({
-      name,
-      type:ChannelType.GuildText,
-      parent:category.id
-    });
-  }
+  const channel=await guild.channels.create({
+    name:name,
+    type:ChannelType.GuildText,
+    parent:category.id
+  });
 
   if(locked) await lockChannel(channel);
   else await unlockChannel(channel);
@@ -223,10 +218,6 @@ async function createChannel(guild,category,name,locked){
 }
 
 async function sendPanel(channel,title,description){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   await channel.send({
     embeds:[
       new EmbedBuilder()
@@ -261,29 +252,29 @@ Thank you to everyone supporting the server.`
     )
     .setTimestamp();
 
-  if(old) await old.edit({embeds:[embed]}).catch(()=>{});
-  else await channel.send({embeds:[embed]}).catch(()=>{});
+  if(old){
+    await old.edit({embeds:[embed]}).catch(()=>{});
+  }else{
+    await channel.send({embeds:[embed]}).catch(()=>{});
+  }
 }
 
 async function updateLevelRoles(member){
   const p=profile(member.id);
 
-  for(const [level,name] of LEVEL_ROLES){
+  for(const [name] of LEVEL_ROLES){
+    const level=parseInt(name.split(" ")[1]);
     const role=await getRole(member.guild,name);
+
     if(!role) continue;
 
-    if(p.level>=parseInt(level.split(" ")[1])){
-      if(!member.roles.cache.has(role.id))
-        await member.roles.add(role).catch(()=>{});
+    if(p.level>=level&&!member.roles.cache.has(role.id)){
+      await member.roles.add(role).catch(()=>{});
     }
   }
 }
 
 async function sendRolePanel(channel){
-  const messages=await channel.messages.fetch({limit:50}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id&&m.components.length)) return;
-
   const rows=[];
 
   for(let i=0;i<SELF_ROLES.length;i+=5){
@@ -338,10 +329,6 @@ Click it again to remove it.
 }
 
 async function sendGamePanel(channel){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   await channel.send({
     embeds:[
       new EmbedBuilder()
@@ -349,7 +336,7 @@ async function sendGamePanel(channel){
         .setDescription(
 `Have fun with the server.
 
-**Commands**
+**Games**
 \`/coinflip\`
 \`/roll\`
 \`/8ball\`
@@ -362,10 +349,6 @@ async function sendGamePanel(channel){
 }
 
 async function sendBotPanel(channel){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   await channel.send({
     embeds:[
       new EmbedBuilder()
@@ -389,20 +372,22 @@ async function sendBotPanel(channel){
 \`/wouldyourather\`
 \`/trivia\`
 
-**Other**
+**Anonymous**
 \`/confess\`
 
-Staff commands are only available to staff.`
+**Moderation**
+\`/warn\`
+\`/warnings\`
+\`/clear\`
+\`/kick\`
+\`/timeout\`
+\`/ban\``
         )
     ]
   }).catch(()=>{});
 }
 
 async function sendLevelPanel(channel){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   await channel.send({
     embeds:[
       new EmbedBuilder()
@@ -410,41 +395,35 @@ async function sendLevelPanel(channel){
         .setDescription(
 `Chat to earn XP.
 
-Every message can give XP, with a cooldown to prevent spam.
+You receive XP from chatting with a cooldown to prevent spam.
 
-Use:
+**Commands**
 \`/rank\`
 \`/leaderboard\`
 
-Level rewards:
-**୨୧・level 5**
-**୨୧・level 10**
-**୨୧・level 20**
-**୨୧・level 30**`
+**Level Rewards**
+୨୧・level 5
+୨୧・level 10
+୨୧・level 20
+୨୧・level 30`
         )
     ]
   }).catch(()=>{});
 }
 
 async function sendStarboardPanel(channel){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   await channel.send({
     embeds:[
       new EmbedBuilder()
         .setTitle("୨୧・starboard")
-        .setDescription("Messages that receive **3 or more ⭐ reactions** will be featured here.")
+        .setDescription(
+          "Messages that receive **3 ⭐ reactions** will be featured here."
+        )
     ]
   }).catch(()=>{});
 }
 
 async function sendConfessionPanel(channel){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   const row=new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("confess")
@@ -456,17 +435,15 @@ async function sendConfessionPanel(channel){
     embeds:[
       new EmbedBuilder()
         .setTitle("୨୧・confessions")
-        .setDescription("Send an anonymous confession by pressing the button below.")
+        .setDescription(
+          "Send an anonymous confession with `/confess` or the button below."
+        )
     ],
     components:[row]
   }).catch(()=>{});
 }
 
 async function sendSupportPanel(channel){
-  const messages=await channel.messages.fetch({limit:20}).catch(()=>null);
-
-  if(messages?.some(m=>m.author.id===client.user.id)) return;
-
   const row=new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("support")
@@ -478,7 +455,9 @@ async function sendSupportPanel(channel){
     embeds:[
       new EmbedBuilder()
         .setTitle("୨୧・support")
-        .setDescription("Need help? Create a private support ticket.")
+        .setDescription(
+          "Need help? Create a private support ticket."
+        )
     ],
     components:[row]
   }).catch(()=>{});
@@ -559,17 +538,14 @@ async function resetServer(guild){
     }
   }
 
-  const rules=await getChannel(guild,"୨୧・rules");
-  const announcements=await getChannel(guild,"୨୧・announcements");
-  const roles=await getChannel(guild,"୨୧・roles");
   const levels=await getChannel(guild,"୨୧・levels");
   const star=await getChannel(guild,"୨୧・starboard");
   const boosts=await getChannel(guild,"୨୧・boosts");
 
   settings[guild.id]={
-    levelChannel:levels?.id,
-    starboardChannel:star?.id,
-    boostChannel:boosts?.id
+    levelChannel:levels?.id||null,
+    starboardChannel:star?.id||null,
+    boostChannel:boosts?.id||null
   };
 
   save("settings.json",settings);
@@ -741,11 +717,14 @@ const commands=[
 ].map(c=>c.toJSON());
 
 client.once("clientReady",async()=>{
-  console.log(`Bot online as ${client.user.tag}`);
+  console.log(`♡ ${client.user.username} | ${client.user.tag} is online`);
 
-  await client.application.commands.set(commands);
-
-  console.log("Commands registered.");
+  try{
+    await client.application.commands.set(commands);
+    console.log("♡ Commands registered");
+  }catch(error){
+    console.error("Command registration error:",error);
+  }
 
   for(const guild of client.guilds.cache.values()){
     await updateBoostPanel(guild).catch(()=>{});
@@ -760,33 +739,34 @@ client.on("interactionCreate",async interaction=>{
         const roleName=interaction.customId.slice(9);
         const role=await getRole(interaction.guild,roleName);
 
-        if(!role)
+        if(!role){
           return interaction.reply({
             content:"That role doesn't exist.",
-            ephemeral:true
+            flags:MessageFlags.Ephemeral
           });
+        }
 
         if(interaction.member.roles.cache.has(role.id)){
           await interaction.member.roles.remove(role);
 
           return interaction.reply({
             content:`Removed ${roleName}.`,
-            ephemeral:true
+            flags:MessageFlags.Ephemeral
           });
         }
 
-        await interaction.member.roles.add(role).catch(()=>null);
+        await interaction.member.roles.add(role);
 
         return interaction.reply({
           content:`Added ${roleName}.`,
-          ephemeral:true
+          flags:MessageFlags.Ephemeral
         });
       }
 
       if(interaction.customId==="confess"){
         return interaction.reply({
           content:"Use `/confess` to send an anonymous confession.",
-          ephemeral:true
+          flags:MessageFlags.Ephemeral
         });
       }
 
@@ -797,11 +777,12 @@ client.on("interactionCreate",async interaction=>{
           c=>c.name===`ticket-${interaction.user.id}`
         );
 
-        if(existing)
+        if(existing){
           return interaction.reply({
             content:`You already have a ticket: ${existing}`,
-            ephemeral:true
+            flags:MessageFlags.Ephemeral
           });
+        }
 
         const staffRole=await getRole(guild,"🔨 Staff");
         const modRole=await getRole(guild,"🛡️ Moderator");
@@ -859,7 +840,7 @@ client.on("interactionCreate",async interaction=>{
         });
 
         await channel.send(
-`**Support Ticket**
+`୨୧・support ticket
 
 Tell us what you need help with.
 
@@ -868,23 +849,26 @@ Staff will respond when available.`
 
         return interaction.reply({
           content:`Ticket created: ${channel}`,
-          ephemeral:true
+          flags:MessageFlags.Ephemeral
         });
       }
+
+      return;
     }
 
     if(!interaction.isChatInputCommand()) return;
 
     if(interaction.commandName==="resetserver"){
-      if(!isOwner(interaction.member))
+      if(!isOwner(interaction.member)){
         return interaction.reply({
           content:"Only the server owner can use this command.",
-          ephemeral:true
+          flags:MessageFlags.Ephemeral
         });
+      }
 
       await interaction.reply({
         content:"Rebuilding the server...",
-        ephemeral:true
+        flags:MessageFlags.Ephemeral
       });
 
       await resetServer(interaction.guild);
@@ -898,7 +882,9 @@ Staff will respond when available.`
       return;
     }
 
-    await interaction.deferReply({ephemeral:true});
+    await interaction.deferReply({
+      flags:MessageFlags.Ephemeral
+    });
 
     const guild=interaction.guild;
     const member=interaction.member;
@@ -906,7 +892,10 @@ Staff will respond when available.`
     if(interaction.commandName==="rank"){
       const p=profile(member.id);
       const required=needed(p.level);
-      const percent=Math.min(100,Math.floor((p.xp/required)*100));
+      const percent=Math.min(
+        100,
+        Math.floor((p.xp/required)*100)
+      );
       const bars=Math.floor(percent/10);
 
       return interaction.editReply(
@@ -925,12 +914,16 @@ ${"▰".repeat(bars)}${"▱".repeat(10-bars)} ${percent}%`
         .sort((a,b)=>{
           if(b[1].level!==a[1].level)
             return b[1].level-a[1].level;
+
           return b[1].xp-a[1].xp;
         })
         .slice(0,10);
 
-      if(!top.length)
-        return interaction.editReply("Nobody has earned XP yet.");
+      if(!top.length){
+        return interaction.editReply(
+          "Nobody has earned XP yet."
+        );
+      }
 
       let out="୨୧・leaderboard\n\n";
 
@@ -942,7 +935,10 @@ ${"▰".repeat(bars)}${"▱".repeat(10-bars)} ${percent}%`
     }
 
     if(interaction.commandName==="profile"){
-      const user=interaction.options.getUser("user")||interaction.user;
+      const user=
+        interaction.options.getUser("user")||
+        interaction.user;
+
       const p=profile(user.id);
 
       return interaction.editReply({
@@ -964,28 +960,37 @@ Friends: **${p.friends.length}**`
 
     if(interaction.commandName==="setbio"){
       const p=profile(member.id);
-
-      p.bio=interaction.options.getString("text").slice(0,500);
+      p.bio=interaction.options
+        .getString("text")
+        .slice(0,500);
 
       save("profiles.json",profiles);
 
-      return interaction.editReply("Your bio has been updated.");
+      return interaction.editReply(
+        "Your bio has been updated."
+      );
     }
 
     if(interaction.commandName==="friend"){
       const user=interaction.options.getUser("user");
 
-      if(user.id===member.id)
-        return interaction.editReply("You can't add yourself.");
+      if(user.id===member.id){
+        return interaction.editReply(
+          "You can't add yourself."
+        );
+      }
 
       const p=profile(member.id);
 
-      if(!p.friends.includes(user.id))
+      if(!p.friends.includes(user.id)){
         p.friends.push(user.id);
+      }
 
       save("profiles.json",profiles);
 
-      return interaction.editReply(`${user} was added to your friends.`);
+      return interaction.editReply(
+        `${user} was added to your friends.`
+      );
     }
 
     if(interaction.commandName==="friends"){
@@ -1038,9 +1043,11 @@ Friends: **${p.friends.length}**`
         (choice==="rock"&&bot==="scissors")||
         (choice==="paper"&&bot==="rock")||
         (choice==="scissors"&&bot==="paper")
-      ) result="You win.";
-
-      else if(choice!==bot) result="You lose.";
+      ){
+        result="You win.";
+      }else if(choice!==bot){
+        result="You lose.";
+      }
 
       return interaction.editReply(
 `୨୧・rps
@@ -1078,16 +1085,29 @@ Bot: **${bot}**
       const q=questions[Math.floor(Math.random()*questions.length)];
 
       return interaction.editReply(
-        `୨୧・trivia\n\n**Question:** ${q[0]}\n\n**Answer:** ||${q[1]}||`
+`୨୧・trivia
+
+**Question:** ${q[0]}
+
+**Answer:** ||${q[1]}||`
       );
     }
 
     if(interaction.commandName==="confess"){
-      const message=interaction.options.getString("message").slice(0,1000);
-      const channel=await getChannel(guild,"୨୧・confessions");
+      const message=interaction.options
+        .getString("message")
+        .slice(0,1000);
 
-      if(!channel)
-        return interaction.editReply("The confession channel doesn't exist.");
+      const channel=await getChannel(
+        guild,
+        "୨୧・confessions"
+      );
+
+      if(!channel){
+        return interaction.editReply(
+          "The confession channel doesn't exist."
+        );
+      }
 
       const id=(confessions[guild.id]||0)+1;
 
@@ -1099,59 +1119,97 @@ Bot: **${bot}**
           new EmbedBuilder()
             .setTitle(`୨୧・confession #${id}`)
             .setDescription(message)
-            .setFooter({text:"Anonymous confession"})
+            .setFooter({
+              text:"Anonymous confession"
+            })
             .setTimestamp()
         ]
       });
 
-      return interaction.editReply("Your confession was posted anonymously.");
+      return interaction.editReply(
+        "Your confession was posted anonymously."
+      );
     }
 
-    if(interaction.commandName==="ping")
-      return interaction.editReply(`Pong! ${client.ws.ping}ms`);
+    if(interaction.commandName==="ping"){
+      return interaction.editReply(
+        `Pong! ${client.ws.ping}ms`
+      );
+    }
 
-    if(["ban","kick","timeout","warn","warnings","clear"].includes(interaction.commandName)){
-      if(!isModerator(member))
-        return interaction.editReply("You don't have permission to use this command.");
+    if([
+      "ban",
+      "kick",
+      "timeout",
+      "warn",
+      "warnings",
+      "clear"
+    ].includes(interaction.commandName)){
+
+      if(!isModerator(member)){
+        return interaction.editReply(
+          "You don't have permission to use this command."
+        );
+      }
     }
 
     if(interaction.commandName==="ban"){
-      if(!isOwner(member))
-        return interaction.editReply("Only the server owner can ban members.");
+      if(!isOwner(member)){
+        return interaction.editReply(
+          "Only the server owner can ban members."
+        );
+      }
 
       const target=await guild.members.fetch(
         interaction.options.getUser("user").id
       ).catch(()=>null);
 
-      if(!target||!target.bannable)
-        return interaction.editReply("I can't ban that member.");
+      if(!target||!target.bannable){
+        return interaction.editReply(
+          "I can't ban that member."
+        );
+      }
 
-      await target.ban({reason:"Owner ban"});
+      await target.ban({
+        reason:`Owner ban by ${member.user.tag}`
+      });
 
-      return interaction.editReply(`Banned **${target.user.tag}**.`);
+      return interaction.editReply(
+        `Banned **${target.user.tag}**.`
+      );
     }
 
     if(interaction.commandName==="kick"){
       const target=interaction.options.getMember("user");
 
-      if(!target?.kickable)
-        return interaction.editReply("I can't kick that member.");
+      if(!target?.kickable){
+        return interaction.editReply(
+          "I can't kick that member."
+        );
+      }
 
-      await target.kick("Moderator kick");
+      await target.kick(
+        `Moderator kick by ${member.user.tag}`
+      );
 
-      return interaction.editReply(`Kicked **${target.user.tag}**.`);
+      return interaction.editReply(
+        `Kicked **${target.user.tag}**.`
+      );
     }
 
     if(interaction.commandName==="timeout"){
       const target=interaction.options.getMember("user");
       const minutes=interaction.options.getInteger("minutes");
 
-      if(!target?.moderatable)
-        return interaction.editReply("I can't timeout that member.");
+      if(!target?.moderatable){
+        return interaction.editReply(
+          "I can't timeout that member."
+        );
+      }
 
       await target.timeout(
         minutes*60000,
-        "Moderator timeout"
+        `Timeout by ${member.user.tag}`
       );
 
       return interaction.editReply(
@@ -1163,10 +1221,12 @@ Bot: **${bot}**
       const user=interaction.options.getUser("user");
       const reason=interaction.options.getString("reason");
 
-      if(!warnings[user.id]) warnings[user.id]=[];
+      if(!warnings[user.id]){
+        warnings[user.id]=[];
+      }
 
       warnings[user.id].push({
-        reason,
+        reason:reason,
         moderator:member.id,
         date:Date.now()
       });
@@ -1174,18 +1234,24 @@ Bot: **${bot}**
       save("warnings.json",warnings);
 
       return interaction.editReply(
-        `Warned **${user.tag}**.\nReason: ${reason}`
+`Warned **${user.tag}**.
+
+Reason: ${reason}`
       );
     }
 
     if(interaction.commandName==="warnings"){
-      const user=interaction.options.getUser("user")||interaction.user;
+      const user=
+        interaction.options.getUser("user")||
+        interaction.user;
+
       const list=warnings[user.id]||[];
 
-      if(!list.length)
+      if(!list.length){
         return interaction.editReply(
           `${user.username} has no warnings.`
         );
+      }
 
       return interaction.editReply(
 `୨୧・warnings
@@ -1197,7 +1263,10 @@ ${list.map((w,i)=>`**${i+1}.** ${w.reason}`).join("\n")}`
     if(interaction.commandName==="clear"){
       const amount=interaction.options.getInteger("amount");
 
-      await interaction.channel.bulkDelete(amount,true);
+      await interaction.channel.bulkDelete(
+        amount,
+        true
+      );
 
       return interaction.editReply(
         `Deleted **${amount}** messages.`
@@ -1207,15 +1276,16 @@ ${list.map((w,i)=>`**${i+1}.** ${w.reason}`).join("\n")}`
   }catch(error){
     console.error(error);
 
-    if(interaction.deferred||interaction.replied)
+    if(interaction.deferred||interaction.replied){
       await interaction.editReply(
         "Something went wrong. Check the bot logs."
       ).catch(()=>{});
-    else
+    }else{
       await interaction.reply({
         content:"Something went wrong.",
-        ephemeral:true
+        flags:MessageFlags.Ephemeral
       }).catch(()=>{});
+    }
   }
 });
 
@@ -1243,11 +1313,15 @@ client.on("messageCreate",async message=>{
   if(leveled){
     await updateLevelRoles(message.member);
 
-    const channel=settings[message.guild.id]?.levelChannel
+    const channel=
+      settings[message.guild.id]?.levelChannel
       ? message.guild.channels.cache.get(
           settings[message.guild.id].levelChannel
         )
-      : await getChannel(message.guild,"୨୧・levels");
+      : await getChannel(
+          message.guild,
+          "୨୧・levels"
+        );
 
     if(channel){
       await channel.send(
@@ -1263,16 +1337,24 @@ client.on("messageReactionAdd",async(reaction,user)=>{
   try{
     if(user.bot) return;
 
-    if(reaction.partial) await reaction.fetch().catch(()=>{});
-    if(reaction.message.partial)
+    if(reaction.partial){
+      await reaction.fetch().catch(()=>{});
+    }
+
+    if(reaction.message.partial){
       await reaction.message.fetch().catch(()=>{});
+    }
 
     if(reaction.emoji.name!=="⭐") return;
-
     if(reaction.count<3) return;
 
     const guild=reaction.message.guild;
-    const channel=await getChannel(guild,"୨୧・starboard");
+    if(!guild) return;
+
+    const channel=await getChannel(
+      guild,
+      "୨୧・starboard"
+    );
 
     if(!channel) return;
 
@@ -1289,7 +1371,9 @@ client.on("messageReactionAdd",async(reaction,user)=>{
         iconURL:reaction.message.author.displayAvatarURL()
       })
       .setDescription(
-`${reaction.message.content||"*No text content*"}\n\n[Jump to message](${reaction.message.url})`
+`${reaction.message.content||"*No text content*"}
+
+[Jump to message](${reaction.message.url})`
       )
       .setFooter({
         text:`${reaction.count} ⭐`
@@ -1318,10 +1402,16 @@ client.on("guildMemberUpdate",async(oldMember,newMember)=>{
     );
 
     if(newBoost){
-      if(booster&&!newMember.roles.cache.has(booster.id))
+      if(
+        booster&&
+        !newMember.roles.cache.has(booster.id)
+      ){
         await newMember.roles.add(booster).catch(()=>{});
+      }
 
-      await updateBoostPanel(newMember.guild);
+      await updateBoostPanel(
+        newMember.guild
+      );
 
       const channel=await getChannel(
         newMember.guild,
@@ -1330,26 +1420,36 @@ client.on("guildMemberUpdate",async(oldMember,newMember)=>{
 
       if(channel){
         await channel.send(
-          `Thank you ${newMember} for boosting the server.`
+          `Thank you ${newMember} for boosting the server! ♡`
         ).catch(()=>{});
       }
     }else{
-      if(booster&&newMember.roles.cache.has(booster.id))
+      if(
+        booster&&
+        newMember.roles.cache.has(booster.id)
+      ){
         await newMember.roles.remove(booster).catch(()=>{});
+      }
 
-      await updateBoostPanel(newMember.guild);
+      await updateBoostPanel(
+        newMember.guild
+      );
     }
   }catch(error){
-    console.error(error);
+    console.error("Boost error:",error);
   }
 });
 
 client.on("guildMemberAdd",async member=>{
   try{
-    const memberRole=await getRole(member.guild,"Member");
+    const memberRole=await getRole(
+      member.guild,
+      "Member"
+    );
 
-    if(memberRole)
+    if(memberRole){
       await member.roles.add(memberRole).catch(()=>{});
+    }
 
     const channel=await getChannel(
       member.guild,
@@ -1358,13 +1458,13 @@ client.on("guildMemberAdd",async member=>{
 
     if(channel){
       await channel.send(
-`Welcome ${member}!
+`Welcome ${member}! ♡
 
 Introduce yourself and make some friends.`
       ).catch(()=>{});
     }
   }catch(error){
-    console.error(error);
+    console.error("Welcome error:",error);
   }
 });
 
