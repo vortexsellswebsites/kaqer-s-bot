@@ -14,6 +14,10 @@ const {
   Routes,
 } = require("discord.js");
 
+// =====================================================
+// bot
+// =====================================================
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -29,29 +33,37 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-// =========================
-// ROLES
-// =========================
+// =====================================================
+// roles
+// =====================================================
 
-const VERIFIED_ROLE = "✅ Verified";
-const MEMBER_ROLE = "👤 Member";
-const BOT_ROLE = "🤖 Bots";
+const ROLES = {
+  owner: "👑 Owner",
+  admin: "🔴 Admin",
+  moderator: "🛡️ Moderator",
+  staff: "🔨 Staff",
+  support: "🎫 Support",
+  member: "👤 Member",
+  bots: "🤖 Bots",
+  verified: "✅ Verified",
+};
 
 const STAFF_ROLES = [
-  "👑 Owner",
-  "🔴 Admin",
-  "🛡️ Moderator",
-  "🔨 Staff",
-  "🎫 Support",
+  ROLES.owner,
+  ROLES.admin,
+  ROLES.moderator,
+  ROLES.staff,
+  ROLES.support,
 ];
 
-// =========================
-// SERVER STRUCTURE
-// =========================
+// =====================================================
+// layout
+// =====================================================
 
-const STRUCTURE = [
+const LAYOUT = [
   {
     category: "✨ START HERE",
+    type: "public",
     channels: [
       ["welcome", "👋・welcome"],
       ["rules", "📜・rules"],
@@ -61,17 +73,19 @@ const STRUCTURE = [
   },
 
   {
-    category: "💬 THE LOUNGE",
+    category: "💬 COMMUNITY",
+    type: "member",
     channels: [
       ["chat", "💬・chat"],
       ["media", "🖼️・media"],
       ["lfg", "🎮・looking-for-group"],
-      ["commands", "🤖・bot-commands"],
+      ["botCommands", "🤖・bot-commands"],
     ],
   },
 
   {
-    category: "🎨 CREATOR SPACE",
+    category: "🎨 CREATIVE",
+    type: "member",
     channels: [
       ["clips", "🎬・clips"],
       ["creations", "🎨・creations"],
@@ -81,7 +95,8 @@ const STRUCTURE = [
   },
 
   {
-    category: "🌐 COMMUNITY",
+    category: "🌐 SOCIAL",
+    type: "member",
     channels: [
       ["socials", "📱・socials"],
       ["milestones", "🏆・milestones"],
@@ -91,7 +106,8 @@ const STRUCTURE = [
   },
 
   {
-    category: "ℹ️ DISCOVER",
+    category: "ℹ️ INFO",
+    type: "member",
     channels: [
       ["about", "❔・about"],
       ["updates", "📰・updates"],
@@ -101,14 +117,16 @@ const STRUCTURE = [
 
   {
     category: "🆘 SUPPORT",
+    type: "member",
     channels: [
       ["tickets", "🎫・tickets"],
-      ["moderatorApplications", "📝・moderator-applications"],
+      ["applications", "📝・moderator-applications"],
     ],
   },
 
   {
     category: "🔐 STAFF HQ",
+    type: "staff",
     channels: [
       ["staffChat", "🔒・staff-chat"],
       ["moderation", "🛡️・moderation"],
@@ -118,6 +136,7 @@ const STRUCTURE = [
 
   {
     category: "📝 APPLICATIONS",
+    type: "staff",
     channels: [
       ["pending", "⏳・pending"],
       ["accepted", "✅・accepted"],
@@ -126,155 +145,377 @@ const STRUCTURE = [
   },
 ];
 
-// =========================
-// ROLE CREATION
-// =========================
+// =====================================================
+// helpers
+// =====================================================
 
-async function getOrCreateRole(guild, name, color) {
-  let role = guild.roles.cache.find((r) => r.name === name);
-
-  if (!role) {
-    role = await guild.roles.create({
-      name,
-      color,
-      reason: "Automatic community server setup",
-    });
-  }
-
-  return role;
+function findRole(guild, name) {
+  return guild.roles.cache.find(
+    (role) => role.name === name
+  );
 }
 
-async function setupRoles(guild) {
+function findChannel(guild, name) {
+  return guild.channels.cache.find(
+    (channel) => channel.name === name
+  );
+}
+
+function isStaff(member) {
+  if (!member) return false;
+
+  return member.roles.cache.some((role) =>
+    STAFF_ROLES.includes(role.name)
+  );
+}
+
+// =====================================================
+// roles
+// =====================================================
+
+async function createRoles(guild) {
+  const roles = {};
+
+  const roleData = [
+    [ROLES.owner, 0xf1c40f],
+    [ROLES.admin, 0xe74c3c],
+    [ROLES.moderator, 0x3498db],
+    [ROLES.staff, 0x95a5a6],
+    [ROLES.support, 0x9b59b6],
+    [ROLES.member, 0x5865f2],
+    [ROLES.bots, 0x7289da],
+    [ROLES.verified, 0x57f287],
+  ];
+
+  for (const [name, color] of roleData) {
+    let role = findRole(guild, name);
+
+    if (!role) {
+      role = await guild.roles.create({
+        name,
+        color,
+        reason: "server rebuild",
+      });
+    }
+
+    roles[name] = role;
+  }
+
   return {
-    verified: await getOrCreateRole(
-      guild,
-      VERIFIED_ROLE,
-      0x57f287
-    ),
-
-    member: await getOrCreateRole(
-      guild,
-      MEMBER_ROLE,
-      0x5865f2
-    ),
-
-    bots: await getOrCreateRole(
-      guild,
-      BOT_ROLE,
-      0x7289da
-    ),
-
-    owner: await getOrCreateRole(
-      guild,
-      "👑 Owner",
-      0xf1c40f
-    ),
-
-    admin: await getOrCreateRole(
-      guild,
-      "🔴 Admin",
-      0xe74c3c
-    ),
-
-    moderator: await getOrCreateRole(
-      guild,
-      "🛡️ Moderator",
-      0x3498db
-    ),
-
-    staff: await getOrCreateRole(
-      guild,
-      "🔨 Staff",
-      0x95a5a6
-    ),
-
-    support: await getOrCreateRole(
-      guild,
-      "🎫 Support",
-      0x9b59b6
-    ),
+    owner: roles[ROLES.owner],
+    admin: roles[ROLES.admin],
+    moderator: roles[ROLES.moderator],
+    staff: roles[ROLES.staff],
+    support: roles[ROLES.support],
+    member: roles[ROLES.member],
+    bots: roles[ROLES.bots],
+    verified: roles[ROLES.verified],
   };
 }
 
-// =========================
-// CHANNEL CREATION
-// =========================
+// =====================================================
+// DELETE EVERYTHING
+// =====================================================
 
-async function getOrCreateCategory(guild, name) {
-  let category = guild.channels.cache.find(
-    (channel) =>
-      channel.type === ChannelType.GuildCategory &&
-      channel.name === name
+async function deleteEveryChannel(guild) {
+  console.log(
+    `🗑️ deleting every channel in ${guild.name}...`
   );
 
-  if (!category) {
-    category = await guild.channels.create({
-      name,
-      type: ChannelType.GuildCategory,
-    });
+  // Fetch again so nothing is missed.
+  await guild.channels.fetch();
+
+  const channels = [...guild.channels.cache.values()];
+
+  for (const channel of channels) {
+    try {
+      await channel.delete(
+        "complete server rebuild"
+      );
+
+      console.log(
+        `🗑️ deleted: ${channel.name}`
+      );
+    } catch (error) {
+      console.error(
+        `couldn't delete ${channel.name}:`,
+        error.message
+      );
+    }
+  }
+
+  console.log("✅ all channels deleted.");
+}
+
+// =====================================================
+// category
+// =====================================================
+
+async function createCategory(
+  guild,
+  name,
+  type,
+  roles
+) {
+  const category = await guild.channels.create({
+    name,
+    type: ChannelType.GuildCategory,
+    reason: "server rebuild",
+  });
+
+  // -----------------------------------------------
+  // public
+  // -----------------------------------------------
+
+  if (type === "public") {
+    await category.permissionOverwrites.edit(
+      guild.roles.everyone,
+      {
+        ViewChannel: true,
+        SendMessages: false,
+        AttachFiles: false,
+      }
+    );
+
+    await category.permissionOverwrites.edit(
+      roles.verified,
+      {
+        ViewChannel: true,
+        SendMessages: false,
+      }
+    );
+  }
+
+  // -----------------------------------------------
+  // member
+  // -----------------------------------------------
+
+  if (type === "member") {
+    await category.permissionOverwrites.edit(
+      guild.roles.everyone,
+      {
+        ViewChannel: false,
+        SendMessages: false,
+      }
+    );
+
+    await category.permissionOverwrites.edit(
+      roles.verified,
+      {
+        ViewChannel: true,
+        SendMessages: true,
+        AttachFiles: false,
+        ReadMessageHistory: true,
+      }
+    );
+  }
+
+  // -----------------------------------------------
+  // staff
+  // -----------------------------------------------
+
+  if (type === "staff") {
+    await category.permissionOverwrites.edit(
+      guild.roles.everyone,
+      {
+        ViewChannel: false,
+        SendMessages: false,
+      }
+    );
+
+    // Explicitly hide from verified members.
+    await category.permissionOverwrites.edit(
+      roles.verified,
+      {
+        ViewChannel: false,
+        SendMessages: false,
+      }
+    );
+  }
+
+  // -----------------------------------------------
+  // staff roles
+  // -----------------------------------------------
+
+  for (const role of Object.values(roles)) {
+    if (!role) continue;
+
+    if (
+      [
+        roles.owner,
+        roles.admin,
+        roles.moderator,
+        roles.staff,
+        roles.support,
+      ].includes(role)
+    ) {
+      await category.permissionOverwrites.edit(
+        role,
+        {
+          ViewChannel: true,
+          SendMessages: true,
+          AttachFiles: true,
+          EmbedLinks: true,
+          ReadMessageHistory: true,
+        }
+      );
+    }
   }
 
   return category;
 }
 
-async function getOrCreateChannel(
+// =====================================================
+// channel
+// =====================================================
+
+async function createChannel(
   guild,
   category,
-  name
+  key,
+  name,
+  type,
+  roles
 ) {
-  let channel = guild.channels.cache.find(
-    (channel) =>
-      channel.type === ChannelType.GuildText &&
-      channel.name === name &&
-      channel.parentId === category.id
-  );
+  const channel = await guild.channels.create({
+    name,
+    type: ChannelType.GuildText,
+    parent: category.id,
+    reason: "server rebuild",
+  });
 
-  if (!channel) {
-    channel = await guild.channels.create({
-      name,
-      type: ChannelType.GuildText,
-      parent: category.id,
-    });
+  // -----------------------------------------------
+  // public channels
+  // -----------------------------------------------
+
+  if (type === "public") {
+    await channel.permissionOverwrites.edit(
+      guild.roles.everyone,
+      {
+        ViewChannel: true,
+        SendMessages: false,
+        AttachFiles: false,
+      }
+    );
+
+    await channel.permissionOverwrites.edit(
+      roles.verified,
+      {
+        ViewChannel: true,
+        SendMessages: false,
+        AttachFiles: false,
+      }
+    );
+  }
+
+  // -----------------------------------------------
+  // member channels
+  // -----------------------------------------------
+
+  if (type === "member") {
+    await channel.permissionOverwrites.edit(
+      guild.roles.everyone,
+      {
+        ViewChannel: false,
+        SendMessages: false,
+        AttachFiles: false,
+      }
+    );
+
+    await channel.permissionOverwrites.edit(
+      roles.verified,
+      {
+        ViewChannel: true,
+        SendMessages: true,
+        AttachFiles: false,
+        EmbedLinks: true,
+        ReadMessageHistory: true,
+      }
+    );
+  }
+
+  // -----------------------------------------------
+  // staff channels
+  // -----------------------------------------------
+
+  if (type === "staff") {
+    await channel.permissionOverwrites.edit(
+      guild.roles.everyone,
+      {
+        ViewChannel: false,
+        SendMessages: false,
+      }
+    );
+
+    // Important:
+    // verified members CANNOT see staff channels.
+    await channel.permissionOverwrites.edit(
+      roles.verified,
+      {
+        ViewChannel: false,
+        SendMessages: false,
+      }
+    );
+  }
+
+  // -----------------------------------------------
+  // staff access
+  // -----------------------------------------------
+
+  for (const role of [
+    roles.owner,
+    roles.admin,
+    roles.moderator,
+    roles.staff,
+    roles.support,
+  ]) {
+    if (!role) continue;
+
+    await channel.permissionOverwrites.edit(
+      role,
+      {
+        ViewChannel: true,
+        SendMessages: true,
+        AttachFiles: true,
+        EmbedLinks: true,
+        ReadMessageHistory: true,
+      }
+    );
   }
 
   return channel;
 }
 
-// =========================
-// HONEYPOT
-// =========================
+// =====================================================
+// honeypot
+// =====================================================
 
-async function setupHoneypot(guild, roles) {
-  let category = guild.channels.cache.find(
-    (channel) =>
-      channel.type === ChannelType.GuildCategory &&
-      channel.name === "🍯 HONEYPOT SECURITY"
-  );
-
-  if (!category) {
-    category = await guild.channels.create({
+async function createHoneypot(guild) {
+  const category =
+    await guild.channels.create({
       name: "🍯 HONEYPOT SECURITY",
       type: ChannelType.GuildCategory,
-      reason: "Automatic security honeypot",
+      reason: "security honeypot",
     });
-  }
 
-  let channel = guild.channels.cache.find(
-    (c) =>
-      c.type === ChannelType.GuildText &&
-      c.name === "🍯・honeypot-security"
-  );
-
-  if (!channel) {
-    channel = await guild.channels.create({
+  const channel =
+    await guild.channels.create({
       name: "🍯・honeypot-security",
       type: ChannelType.GuildText,
       parent: category.id,
-      reason: "Automatic security honeypot",
+      reason: "security honeypot",
     });
-  }
 
-  // Everyone can see and type
+  await category.permissionOverwrites.edit(
+    guild.roles.everyone,
+    {
+      ViewChannel: true,
+      SendMessages: true,
+      AttachFiles: true,
+      EmbedLinks: true,
+    }
+  );
+
   await channel.permissionOverwrites.edit(
     guild.roles.everyone,
     {
@@ -285,614 +526,407 @@ async function setupHoneypot(guild, roles) {
     }
   );
 
-  // Staff can use it safely
-  for (const staffName of STAFF_ROLES) {
-    const role = guild.roles.cache.find(
-      (r) => r.name === staffName
-    );
-
-    if (role) {
-      await channel.permissionOverwrites.edit(role, {
-        ViewChannel: true,
-        SendMessages: true,
-        AttachFiles: true,
-        EmbedLinks: true,
-      });
-    }
-  }
-
-  // Put category at very top
+  // Keep it at the very top.
   await category.setPosition(0);
 
-  // Put honeypot channel at top inside category
-  await channel.setPosition(0);
+  const embed = new EmbedBuilder()
+    .setTitle("🍯 security")
+    .setDescription(
+      [
+        "`security channel`",
+        "",
+        "this channel is monitored.",
+        "",
+        "if you somehow ended up here and you're not staff, don't send anything.",
+        "",
+        "`messages from regular members trigger the security system.`",
+      ].join("\n")
+    );
 
-  const messages = await channel.messages.fetch({
-    limit: 50,
+  await channel.send({
+    embeds: [embed],
   });
 
-  const exists = messages.some((message) =>
-    message.content.includes("<AUTO_HONEYPOT>")
-  );
-
-  if (!exists) {
-    await channel.send({
-      content: `🍯 **SECURITY HONEYPOT**
-
-🚨 **IMPORTANT**
-
-If your Discord account has been compromised, **leave this server immediately**.
-
-Do not click suspicious links.
-Do not download unknown files.
-Do not trust unexpected DMs.
-
-⚠️ **This channel is monitored by the security bot.**
-
-<AUTO_HONEYPOT>`,
-    });
-  }
-
-  return {
-    category,
-    channel,
-  };
+  return channel;
 }
 
-// =========================
-// PERMISSIONS
-// =========================
+// =====================================================
+// create layout
+// =====================================================
 
-async function configurePermissions(
+async function buildLayout(
   guild,
-  categories,
-  channels,
   roles
 ) {
-  for (const category of Object.values(categories)) {
-    await category.permissionOverwrites.edit(
-      guild.roles.everyone,
-      {
-        ViewChannel:
-          category.name === "✨ START HERE",
-        SendMessages: false,
-        AttachFiles: false,
-        EmbedLinks: false,
-      }
-    );
-
-    await category.permissionOverwrites.edit(
-      roles.verified,
-      {
-        ViewChannel: true,
-        SendMessages: true,
-        AttachFiles: false,
-        EmbedLinks: true,
-      }
-    );
-
-    for (const staffName of STAFF_ROLES) {
-      const staffRole = guild.roles.cache.find(
-        (role) => role.name === staffName
-      );
-
-      if (staffRole) {
-        await category.permissionOverwrites.edit(
-          staffRole,
-          {
-            ViewChannel: true,
-            SendMessages: true,
-            AttachFiles: true,
-            EmbedLinks: true,
-          }
-        );
-      }
-    }
-  }
-
-  const publicChannels = [
-    channels.welcome,
-    channels.rules,
-    channels.verify,
-    channels.announcements,
-  ];
-
-  for (const channel of publicChannels) {
-    await channel.permissionOverwrites.edit(
-      guild.roles.everyone,
-      {
-        ViewChannel: true,
-        SendMessages: false,
-        AttachFiles: false,
-        EmbedLinks: false,
-      }
-    );
-  }
-
-  for (const channel of Object.values(channels)) {
-    if (!channel?.permissionOverwrites) continue;
-
-    if (publicChannels.includes(channel)) continue;
-
-    await channel.permissionOverwrites.edit(
-      guild.roles.everyone,
-      {
-        ViewChannel: false,
-      }
-    );
-
-    await channel.permissionOverwrites.edit(
-      roles.verified,
-      {
-        ViewChannel: true,
-        SendMessages: true,
-        AttachFiles: false,
-        EmbedLinks: true,
-      }
-    );
-  }
-
-  for (const staffName of STAFF_ROLES) {
-    const staffRole = guild.roles.cache.find(
-      (role) => role.name === staffName
-    );
-
-    if (!staffRole) continue;
-
-    for (const channel of Object.values(channels)) {
-      if (!channel?.permissionOverwrites) continue;
-
-      await channel.permissionOverwrites.edit(
-        staffRole,
-        {
-          ViewChannel: true,
-          SendMessages: true,
-          AttachFiles: true,
-          EmbedLinks: true,
-        }
-      );
-    }
-  }
-}
-
-// =========================
-// SEND MESSAGE ONCE
-// =========================
-
-async function sendOnce(
-  channel,
-  content,
-  marker
-) {
-  const messages = await channel.messages.fetch({
-    limit: 50,
-  });
-
-  if (
-    messages.some((message) =>
-      message.content.includes(marker)
-    )
-  ) {
-    return;
-  }
-
-  await channel.send(content);
-}
-
-// =========================
-// SERVER MESSAGES
-// =========================
-
-async function setupMessages(channels) {
-  await sendOnce(
-    channels.welcome,
-    `👋 **WELCOME**
-
-Welcome to the community!
-
-Before accessing the server:
-
-1. Read <#${channels.rules.id}>
-2. Go to <#${channels.verify.id}>
-3. Click the **✅ Verify** button
-
-Once verified, you'll unlock the rest of the server.
-
-<AUTO_WELCOME>`,
-    "<AUTO_WELCOME>"
-  );
-
-  await sendOnce(
-    channels.rules,
-    `📜 **SERVER RULES**
-
-Please read these rules before verifying.
-
-**1. Be respectful**
-Treat everyone with respect.
-
-**2. No harassment**
-Bullying, threats, targeted harassment, or unnecessary drama are not allowed.
-
-**3. No spam**
-Don't spam messages, mentions, emojis, or commands.
-
-**4. Keep it appropriate**
-No NSFW, sexual, graphic, or inappropriate content.
-
-**5. No hate speech**
-Discrimination or hateful content is not allowed.
-
-**6. No advertising**
-Don't advertise servers, products, accounts, or services without permission.
-
-**7. Don't exploit the server**
-Do not abuse bots, permissions, bugs, or server features.
-
-**8. Follow Discord's rules**
-You must follow Discord's Terms of Service and Community Guidelines.
-
-**9. Listen to staff**
-Staff may take action when necessary.
-
-**10. Use common sense**
-If you wouldn't want it done to you, don't do it to someone else.
-
-━━━━━━━━━━━━━━━━━━
-
-✅ **By clicking Verify, you confirm that you have read and agree to follow these rules.**
-
-<AUTO_RULES>`,
-    "<AUTO_RULES>"
-  );
-
-  const verifyButton = new ButtonBuilder()
-    .setCustomId("verify_member")
-    .setLabel("✅ Verify")
-    .setStyle(ButtonStyle.Success);
-
-  const verifyRow =
-    new ActionRowBuilder().addComponents(
-      verifyButton
-    );
-
-  const verifyMessages =
-    await channels.verify.messages.fetch({
-      limit: 50,
-    });
-
-  const verifyExists = verifyMessages.some(
-    (message) =>
-      message.components.length > 0 &&
-      message.content.includes(
-        "<AUTO_VERIFY_BUTTON>"
-      )
-  );
-
-  if (!verifyExists) {
-    await channels.verify.send({
-      content: `🔐 **VERIFY TO ENTER**
-
-Read the rules first.
-
-When you're ready, click the button below.
-
-You will receive the \`✅ Verified\` role and gain access to the rest of the server.
-
-<AUTO_VERIFY_BUTTON>`,
-      components: [verifyRow],
-    });
-  }
-
-  await sendOnce(
-    channels.announcements,
-    `📢 **ANNOUNCEMENTS**
-
-Important server news and announcements will appear here.
-
-<AUTO_ANNOUNCEMENTS>`,
-    "<AUTO_ANNOUNCEMENTS>"
-  );
-
-  const messages = {
-    chat: `💬 **COMMUNITY CHAT**
-
-Talk, meet people and enjoy the community.
-
-<AUTO_CHAT>`,
-
-    media: `🖼️ **MEDIA**
-
-Share your favorite moments and media here!
-
-Regular members cannot upload files/images.
-
-<AUTO_MEDIA>`,
-
-    lfg: `🎮 **LOOKING FOR GROUP**
-
-Looking for people to play with?
-
-🎮 Game:
-🎯 What you're doing:
-👥 Players needed:
-🎤 Voice chat:
-
-<AUTO_LFG>`,
-
-    commands: `🤖 **BOT COMMANDS**
-
-Use bot commands here.
-
-Available:
-\`/setup\`
-
-<AUTO_COMMANDS>`,
-
-    clips: `🎬 **CLIPS**
-
-Share your best gaming clips and highlights!
-
-<AUTO_CLIPS>`,
-
-    creations: `🎨 **CREATIONS**
-
-Show off your edits, artwork, designs, and other creations.
-
-<AUTO_CREATIONS>`,
-
-    screenshots: `📸 **SCREENSHOTS**
-
-Share your favorite screenshots!
-
-<AUTO_SCREENSHOTS>`,
-
-    ideas: `💡 **IDEAS**
-
-Have an idea for the server?
-
-Drop it here.
-
-<AUTO_IDEAS>`,
-
-    socials: `📱 **SOCIALS**
-
-Share your socials and discover other creators.
-
-No spam.
-
-<AUTO_SOCIALS>`,
-
-    milestones: `🏆 **MILESTONES**
-
-Celebrate community achievements here!
-
-<AUTO_MILESTONES>`,
-
-    suggestions: `💭 **SUGGESTIONS**
-
-Have an idea that could improve the server?
-
-Send it here.
-
-<AUTO_SUGGESTIONS>`,
-
-    polls: `🗳️ **POLLS**
-
-Community polls will be posted here.
-
-<AUTO_POLLS>`,
-
-    about: `❔ **ABOUT**
-
-Welcome to our community.
-
-This server is built for gaming, creators, friends, and community events.
-
-<AUTO_ABOUT>`,
-
-    updates: `📰 **UPDATES**
-
-Server updates and important changes will be posted here.
-
-<AUTO_UPDATES>`,
-
-    links: `🔗 **IMPORTANT LINKS**
-
-Official links will be posted here.
-
-<AUTO_LINKS>`,
-
-    staffChat: `🔒 **STAFF CHAT**
-
-Private staff discussion.
-
-<AUTO_STAFF_CHAT>`,
-
-    moderation: `🛡️ **MODERATION**
-
-Private moderation channel.
-
-<AUTO_MODERATION>`,
-
-    pending: `⏳ **PENDING APPLICATIONS**
-
-New moderator applications will appear here.
-
-<AUTO_PENDING>`,
-
-    accepted: `✅ **ACCEPTED**
-
-Accepted applications will be archived here.
-
-<AUTO_ACCEPTED>`,
-
-    denied: `❌ **DENIED**
-
-Denied applications will be archived here.
-
-<AUTO_DENIED>`,
-  };
-
-  for (const [key, content] of Object.entries(
-    messages
-  )) {
-    const marker =
-      content.match(/<AUTO_[A-Z_]+>/)?.[0];
-
-    if (marker && channels[key]) {
-      await sendOnce(
-        channels[key],
-        content,
-        marker
-      );
-    }
-  }
-}
-
-// =========================
-// TICKET PANEL
-// =========================
-
-async function setupTicketPanel(channels) {
-  const button = new ButtonBuilder()
-    .setCustomId("create_ticket")
-    .setLabel("🎫 Create Ticket")
-    .setStyle(ButtonStyle.Primary);
-
-  const row =
-    new ActionRowBuilder().addComponents(button);
-
-  const messages =
-    await channels.tickets.messages.fetch({
-      limit: 50,
-    });
-
-  if (
-    messages.some((message) =>
-      message.content.includes(
-        "<AUTO_TICKET_PANEL>"
-      )
-    )
-  ) {
-    return;
-  }
-
-  await channels.tickets.send({
-    content: `🎫 **SUPPORT TICKETS**
-
-Need help from staff?
-
-Click below to create a private ticket.
-
-<AUTO_TICKET_PANEL>`,
-    components: [row],
-  });
-}
-
-// =========================
-// APPLICATION PANEL
-// =========================
-
-async function setupApplicationPanel(channels) {
-  const button = new ButtonBuilder()
-    .setCustomId("moderator_apply")
-    .setLabel("📝 Apply for Moderator")
-    .setStyle(ButtonStyle.Success);
-
-  const row =
-    new ActionRowBuilder().addComponents(button);
-
-  const messages =
-    await channels.moderatorApplications.messages.fetch({
-      limit: 50,
-    });
-
-  if (
-    messages.some((message) =>
-      message.content.includes(
-        "<AUTO_APPLICATION_PANEL>"
-      )
-    )
-  ) {
-    return;
-  }
-
-  await channels.moderatorApplications.send({
-    content: `📝 **MODERATOR APPLICATIONS**
-
-Think you'd be a good moderator?
-
-Click below to apply.
-
-**We're looking for people who are:**
-• Active
-• Respectful
-• Responsible
-• Helpful
-• Familiar with the server rules
-
-<AUTO_APPLICATION_PANEL>`,
-    components: [row],
-  });
-}
-
-// =========================
-// COMPLETE SERVER SETUP
-// =========================
-
-async function setupServer(guild) {
-  console.log(`🔧 Setting up ${guild.name}`);
-
-  const roles = await setupRoles(guild);
-
-  // HONEYPOT FIRST
-  await setupHoneypot(guild, roles);
-
-  const categories = {};
   const channels = {};
 
-  for (const section of STRUCTURE) {
-    categories[section.category] =
-      await getOrCreateCategory(
+  // Honeypot first.
+  await createHoneypot(guild);
+
+  for (const section of LAYOUT) {
+    const category =
+      await createCategory(
         guild,
-        section.category
+        section.category,
+        section.type,
+        roles
       );
 
-    for (const [key, channelName] of section.channels) {
+    for (const [key, name] of section.channels) {
       channels[key] =
-        await getOrCreateChannel(
+        await createChannel(
           guild,
-          categories[section.category],
-          channelName
+          category,
+          key,
+          name,
+          section.type,
+          roles
         );
     }
   }
 
-  await configurePermissions(
-    guild,
-    categories,
-    channels,
-    roles
+  return channels;
+}
+
+// =====================================================
+// welcome
+// =====================================================
+
+async function sendWelcome(channels) {
+  await channels.welcome.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("👋 welcome")
+        .setDescription(
+          [
+            "yo! welcome to the server :)",
+            "",
+            "`1.` read the rules",
+            "`2.` head over to verify",
+            "`3.` hit the ✅ button",
+            "",
+            "that's it. once you're verified, you're in.",
+          ].join("\n")
+        ),
+    ],
+  });
+}
+
+// =====================================================
+// rules
+// =====================================================
+
+async function sendRules(channels) {
+  await channels.rules.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("📜 rules")
+        .setDescription(
+          [
+            "`1.` don't be weird",
+            "`2.` respect everyone",
+            "`3.` no spam",
+            "`4.` no nsfw",
+            "`5.` no hate speech",
+            "`6.` no advertising",
+            "`7.` don't abuse bots or bugs",
+            "`8.` listen to staff",
+            "`9.` follow discord's rules",
+            "`10.` use common sense",
+            "",
+            "pretty simple. don't ruin it for everyone else.",
+          ].join("\n")
+        ),
+    ],
+  });
+}
+
+// =====================================================
+// verify
+// =====================================================
+
+async function sendVerify(channels) {
+  const button =
+    new ButtonBuilder()
+      .setCustomId("verify_member")
+      .setLabel("✅ Verify")
+      .setStyle(ButtonStyle.Success);
+
+  const row =
+    new ActionRowBuilder().addComponents(
+      button
+    );
+
+  await channels.verify.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("✅ verify")
+        .setDescription(
+          [
+            "read the rules first.",
+            "",
+            "when you're ready, hit the button below.",
+            "",
+            "you'll get access to the rest of the server after verifying.",
+          ].join("\n")
+        ),
+    ],
+    components: [row],
+  });
+}
+
+// =====================================================
+// announcements
+// =====================================================
+
+async function sendAnnouncements(channels) {
+  await channels.announcements.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("📢 announcements")
+        .setDescription(
+          "important server stuff will go here."
+        ),
+    ],
+  });
+}
+
+// =====================================================
+// community messages
+// =====================================================
+
+async function sendCommunityMessages(channels) {
+  await channels.chat.send(
+    "💬 **chat**\n\njust talk. have fun. don't be weird."
   );
 
-  await setupMessages(channels);
-  await setupTicketPanel(channels);
-  await setupApplicationPanel(channels);
+  await channels.media.send(
+    "🖼️ **media**\n\npost your favorite stuff here.\n\n`note:` regular members can't upload files in normal channels."
+  );
 
-  console.log(
-    `✅ Setup complete for ${guild.name}`
+  await channels.lfg.send(
+    "🎮 **looking for group**\n\n`game:`\n`activity:`\n`players needed:`\n`mic:`"
+  );
+
+  await channels.botCommands.send(
+    "🤖 **bot commands**\n\nrun your bot commands here."
   );
 }
 
-// =========================
-// COMMAND REGISTRATION
-// =========================
+// =====================================================
+// creative
+// =====================================================
+
+async function sendCreativeMessages(channels) {
+  await channels.clips.send(
+    "🎬 **clips**\n\nshow off your best clips."
+  );
+
+  await channels.creations.send(
+    "🎨 **creations**\n\nart, edits, designs, whatever you make."
+  );
+
+  await channels.screenshots.send(
+    "📸 **screenshots**\n\npost your favorite screenshots."
+  );
+
+  await channels.ideas.send(
+    "💡 **ideas**\n\nhave an idea? drop it here."
+  );
+}
+
+// =====================================================
+// social
+// =====================================================
+
+async function sendSocialMessages(channels) {
+  await channels.socials.send(
+    "📱 **socials**\n\nshare your socials here."
+  );
+
+  await channels.milestones.send(
+    "🏆 **milestones**\n\nshow off your achievements."
+  );
+
+  await channels.suggestions.send(
+    "💭 **suggestions**\n\nsomething we should add or change?\n\ntell us."
+  );
+
+  await channels.polls.send(
+    "🗳️ **polls**\n\ncommunity polls go here."
+  );
+}
+
+// =====================================================
+// info
+// =====================================================
+
+async function sendInfoMessages(channels) {
+  await channels.about.send(
+    "❔ **about**\n\nwelcome to the community.\n\nthis is where you can find basic info about the server."
+  );
+
+  await channels.updates.send(
+    "📰 **updates**\n\nserver updates will be posted here."
+  );
+
+  await channels.links.send(
+    "🔗 **links**\n\nimportant links will go here."
+  );
+}
+
+// =====================================================
+// ticket panel
+// =====================================================
+
+async function sendTicketPanel(channels) {
+  const button =
+    new ButtonBuilder()
+      .setCustomId("create_ticket")
+      .setLabel("🎫 Create Ticket")
+      .setStyle(ButtonStyle.Primary);
+
+  const row =
+    new ActionRowBuilder().addComponents(
+      button
+    );
+
+  await channels.tickets.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🎫 support")
+        .setDescription(
+          [
+            "need help?",
+            "",
+            "make a ticket and someone from staff will help you.",
+            "",
+            "`please don't make tickets for no reason.`",
+          ].join("\n")
+        ),
+    ],
+    components: [row],
+  });
+}
+
+// =====================================================
+// application panel
+// =====================================================
+
+async function sendApplicationPanel(
+  channels
+) {
+  const button =
+    new ButtonBuilder()
+      .setCustomId("moderator_apply")
+      .setLabel("📝 Apply for Moderator")
+      .setStyle(ButtonStyle.Success);
+
+  const row =
+    new ActionRowBuilder().addComponents(
+      button
+    );
+
+  await channels.applications.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("📝 moderator applications")
+        .setDescription(
+          [
+            "think you'd make a good mod?",
+            "",
+            "hit the button below and fill out the application.",
+            "",
+            "`be honest. don't apply just because you want the role.`",
+          ].join("\n")
+        ),
+    ],
+    components: [row],
+  });
+}
+
+// =====================================================
+// staff messages
+// =====================================================
+
+async function sendStaffMessages(channels) {
+  await channels.staffChat.send(
+    "🔒 **staff chat**\n\nprivate staff chat."
+  );
+
+  await channels.moderation.send(
+    "🛡️ **moderation**\n\nsecurity and moderation logs will show here."
+  );
+
+  await channels.staffLounge.send(
+    "🔊 **staff lounge**\n\nstaff only."
+  );
+
+  await channels.pending.send(
+    "⏳ **pending**\n\nnew moderator applications will show here."
+  );
+
+  await channels.accepted.send(
+    "✅ **accepted**\n\naccepted applications."
+  );
+
+  await channels.denied.send(
+    "❌ **denied**\n\ndenied applications."
+  );
+}
+
+// =====================================================
+// full setup
+// =====================================================
+
+async function setupServer(guild) {
+  console.log(
+    `🔧 rebuilding ${guild.name}...`
+  );
+
+  // IMPORTANT:
+  // DELETE EVERY CHANNEL FIRST.
+  await deleteEveryChannel(guild);
+
+  // Roles stay because Discord roles are separate
+  // from channels.
+  const roles =
+    await createRoles(guild);
+
+  const channels =
+    await buildLayout(
+      guild,
+      roles
+    );
+
+  await sendWelcome(channels);
+  await sendRules(channels);
+  await sendVerify(channels);
+  await sendAnnouncements(channels);
+
+  await sendCommunityMessages(channels);
+  await sendCreativeMessages(channels);
+  await sendSocialMessages(channels);
+  await sendInfoMessages(channels);
+
+  await sendTicketPanel(channels);
+  await sendApplicationPanel(channels);
+
+  await sendStaffMessages(channels);
+
+  console.log(
+    `✅ ${guild.name} rebuilt successfully.`
+  );
+}
+
+// =====================================================
+// register /setup
+// =====================================================
 
 async function registerCommands() {
-  const rest = new REST({
-    version: "10",
-  }).setToken(TOKEN);
+  const rest =
+    new REST({ version: "10" })
+      .setToken(TOKEN);
 
   try {
     await rest.put(
@@ -904,243 +938,328 @@ async function registerCommands() {
           {
             name: "setup",
             description:
-              "Create or repair the server setup.",
+              "delete everything and rebuild the server",
           },
         ],
       }
     );
 
-    console.log("✅ /setup registered");
+    console.log("✅ /setup registered.");
   } catch (error) {
     console.error(
-      "❌ Slash command error:",
+      "❌ command registration failed:",
       error
     );
   }
 }
 
-// =========================
-// BOT READY
-// =========================
+// =====================================================
+// ready
+// =====================================================
 
 client.once("ready", async () => {
   console.log(
-    `🤖 Logged in as ${client.user.tag}`
+    `🤖 ${client.user.tag} is online`
   );
 
   await registerCommands();
 
-  for (const guild of client.guilds.cache.values()) {
+  console.log(
+    "💚 bot is ready"
+  );
+});
+
+// =====================================================
+// NEW SERVER
+// =====================================================
+
+client.on(
+  "guildCreate",
+  async (guild) => {
     try {
+      // New server = automatically build it.
       await setupServer(guild);
     } catch (error) {
       console.error(
-        `❌ Setup failed for ${guild.name}`,
+        "❌ automatic setup failed:",
         error
       );
     }
   }
+);
 
-  console.log("🚀 BOT ONLINE");
-});
-
-// =========================
-// NEW SERVER
-// =========================
-
-client.on("guildCreate", async (guild) => {
-  try {
-    await setupServer(guild);
-  } catch (error) {
-    console.error(error);
-  }
-});
-
-// =========================
+// =====================================================
 // MEMBER JOIN
-// =========================
+// =====================================================
 
-client.on("guildMemberAdd", async (member) => {
-  try {
-    const roleName = member.user.bot
-      ? BOT_ROLE
-      : MEMBER_ROLE;
+client.on(
+  "guildMemberAdd",
+  async (member) => {
+    try {
+      const roleName = member.user.bot
+        ? ROLES.bots
+        : ROLES.member;
 
-    const role =
-      member.guild.roles.cache.find(
-        (r) => r.name === roleName
+      const role =
+        findRole(
+          member.guild,
+          roleName
+        );
+
+      if (role) {
+        await member.roles.add(role);
+      }
+
+      // Don't send welcome messages for bots.
+      if (member.user.bot) return;
+
+      const welcome =
+        findChannel(
+          member.guild,
+          "👋・welcome"
+        );
+
+      const rules =
+        findChannel(
+          member.guild,
+          "📜・rules"
+        );
+
+      const verify =
+        findChannel(
+          member.guild,
+          "✅・verify"
+        );
+
+      if (!welcome) return;
+
+      await welcome.send({
+        content: `${member}`,
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("👋 welcome")
+            .setDescription(
+              [
+                `yo ${member}! welcome :)`,
+                "",
+                "`1.` read the rules",
+                `\`2.\` go to ${rules ? `<#${rules.id}>` : "rules"}`,
+                `\`3.\` hit ${verify ? `<#${verify.id}>` : "verify"}`,
+                "",
+                "once you're verified, you're good.",
+              ].join("\n")
+            ),
+        ],
+        allowedMentions: {
+          users: [member.id],
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ member join error:",
+        error
+      );
+    }
+  }
+);
+
+// =====================================================
+// 🍯 HONEYPOT
+// =====================================================
+
+client.on(
+  "messageCreate",
+  async (message) => {
+    try {
+      if (!message.guild) return;
+      if (message.author.bot) return;
+
+      if (
+        message.channel.name !==
+        "🍯・honeypot-security"
+      ) {
+        return;
+      }
+
+      const member = message.member;
+
+      if (!member) return;
+
+      // Owner can't be banned.
+      if (
+        member.id ===
+        message.guild.ownerId
+      ) {
+        return;
+      }
+
+      // Staff are safe.
+      if (isStaff(member)) {
+        return;
+      }
+
+      console.log(
+        `🍯 honeypot triggered by ${message.author.tag}`
       );
 
-    if (role) {
-      await member.roles.add(role);
+      await message.delete().catch(() => {});
+
+      // Ban.
+      await member.ban({
+        deleteMessageSeconds: 0,
+        reason:
+          "honeypot security trigger",
+      });
+
+      // Immediately unban.
+      await message.guild.members.unban(
+        member.id,
+        "honeypot soft-ban"
+      );
+
+      const moderation =
+        findChannel(
+          message.guild,
+          "🛡️・moderation"
+        );
+
+      if (moderation) {
+        await moderation.send({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("🍯 honeypot triggered")
+              .setDescription(
+                [
+                  `user: ${message.author}`,
+                  `id: \`${message.author.id}\``,
+                  "",
+                  "action: `soft-ban`",
+                ].join("\n")
+              ),
+          ],
+        });
+      }
+
+      console.log(
+        `🚨 soft-banned ${message.author.tag}`
+      );
+    } catch (error) {
+      console.error(
+        "❌ honeypot error:",
+        error.message
+      );
     }
-  } catch (error) {
-    console.error(
-      "❌ Join role error:",
-      error
-    );
   }
-});
+);
 
-// =========================
-// 🍯 HONEYPOT DETECTION
-// =========================
-
-client.on("messageCreate", async (message) => {
-  try {
-    if (!message.guild) return;
-
-    // Ignore bots
-    if (message.author.bot) return;
-
-    if (
-      message.channel.name !==
-      "🍯・honeypot-security"
-    ) {
-      return;
-    }
-
-    // Staff are exempt
-    const isStaff = message.member.roles.cache.some(
-      (role) =>
-        STAFF_ROLES.includes(role.name)
-    );
-
-    if (isStaff) return;
-
-    console.log(
-      `🍯 HONEYPOT TRIGGERED: ${message.author.tag}`
-    );
-
-    // Delete the triggering message first
-    await message.delete().catch(() => {});
-
-    // Soft-ban = ban, then immediately unban
-    await message.member.ban({
-      deleteMessageSeconds: 0,
-      reason:
-        "Honeypot security trigger",
-    });
-
-    await message.guild.members.unban(
-      message.author.id,
-      "Honeypot soft-ban"
-    );
-
-    console.log(
-      `🚨 Soft-banned ${message.author.tag}`
-    );
-  } catch (error) {
-    console.error(
-      "❌ Honeypot error:",
-      error
-    );
-  }
-});
-
-// =========================
+// =====================================================
 // INTERACTIONS
-// =========================
+// =====================================================
 
 client.on(
   "interactionCreate",
   async (interaction) => {
 
-    // =========================
+    // =================================================
     // /setup
-    // =========================
+    // =================================================
 
-    if (interaction.isChatInputCommand()) {
+    if (
+      interaction.isChatInputCommand() &&
+      interaction.commandName === "setup"
+    ) {
       if (
-        interaction.commandName === "setup"
+        !interaction.member.permissions.has(
+          PermissionFlagsBits.ManageGuild
+        )
       ) {
-        if (
-          !interaction.member.permissions.has(
-            PermissionFlagsBits.ManageGuild
-          )
-        ) {
-          return interaction.reply({
-            content:
-              "❌ You need **Manage Server** permission.",
-            ephemeral: true,
-          });
-        }
-
-        await interaction.deferReply({
+        return interaction.reply({
+          content:
+            "`❌` you need **Manage Server** to do this.",
           ephemeral: true,
         });
+      }
 
-        try {
-          await setupServer(
-            interaction.guild
-          );
+      await interaction.deferReply({
+        ephemeral: true,
+      });
 
-          await interaction.editReply(
-            "✅ Server setup repaired!"
-          );
-        } catch (error) {
-          console.error(error);
+      try {
+        await setupServer(
+          interaction.guild
+        );
 
-          await interaction.editReply(
-            "❌ Setup failed. Check the bot's permissions and role position."
-          );
-        }
+        await interaction.editReply(
+          "`✅` done. every channel was deleted and the server was rebuilt."
+        );
+      } catch (error) {
+        console.error(
+          "❌ setup failed:",
+          error
+        );
+
+        await interaction.editReply(
+          "`❌` something went wrong while rebuilding the server.\n\ncheck the bot's permissions and role position."
+        );
       }
 
       return;
     }
 
-    // =========================
+    // =================================================
     // VERIFY
-    // =========================
+    // =================================================
 
     if (
       interaction.isButton() &&
       interaction.customId ===
         "verify_member"
     ) {
-      const verifiedRole =
-        interaction.guild.roles.cache.find(
-          (role) =>
-            role.name === VERIFIED_ROLE
+      const role =
+        findRole(
+          interaction.guild,
+          ROLES.verified
         );
 
-      if (!verifiedRole) {
+      if (!role) {
         return interaction.reply({
           content:
-            "❌ Verified role doesn't exist. Run `/setup`.",
+            "`❌` the verified role doesn't exist. run `/setup`.",
           ephemeral: true,
         });
       }
 
       if (
         interaction.member.roles.cache.has(
-          verifiedRole.id
+          role.id
         )
       ) {
         return interaction.reply({
           content:
-            "✅ You're already verified!",
+            "`✅` you're already verified.",
           ephemeral: true,
         });
       }
 
       try {
         await interaction.member.roles.add(
-          verifiedRole
+          role
         );
 
         await interaction.reply({
           content:
-            "✅ **You're verified!** You now have access to the server. Welcome! 🎉",
+            "`✅` verified. welcome :)",
           ephemeral: true,
         });
       } catch (error) {
-        console.error(error);
+        console.error(
+          "❌ verify error:",
+          error
+        );
 
         await interaction.reply({
           content:
-            "❌ I couldn't verify you. Move the bot's role higher.",
+            "`❌` couldn't give you the role. make sure my role is above `✅ Verified`.",
           ephemeral: true,
         });
       }
@@ -1148,74 +1267,49 @@ client.on(
       return;
     }
 
-    // =========================
+    // =================================================
     // CREATE TICKET
-    // =========================
+    // =================================================
 
     if (
       interaction.isButton() &&
       interaction.customId ===
         "create_ticket"
     ) {
-      const guild = interaction.guild;
-
-      const category =
-        guild.channels.cache.find(
-          (channel) =>
-            channel.type ===
-              ChannelType.GuildCategory &&
-            channel.name === "🆘 SUPPORT"
-        );
-
-      if (!category) {
-        return interaction.reply({
-          content:
-            "❌ Support category doesn't exist. Run `/setup`.",
-          ephemeral: true,
-        });
-      }
-
       const existing =
-        guild.channels.cache.find(
+        interaction.guild.channels.cache.find(
           (channel) =>
             channel.name ===
-              `ticket-${interaction.user.id}` &&
-            channel.parentId === category.id
+              `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20)}` &&
+            channel.type ===
+              ChannelType.GuildText
         );
 
       if (existing) {
         return interaction.reply({
-          content: `❌ You already have a ticket: ${existing}`,
+          content:
+            `\`🎫\` you already have a ticket: ${existing}`,
           ephemeral: true,
         });
       }
 
-      const overwrites = [
-        {
-          id: guild.roles.everyone.id,
-          deny: [
-            PermissionFlagsBits.ViewChannel,
-          ],
-        },
+      const supportCategory =
+        findChannel(
+          interaction.guild,
+          "🎫・tickets"
+        )?.parent;
 
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-          ],
-        },
-      ];
+      const staffOverwrites = [];
 
-      for (const roleName of STAFF_ROLES) {
+      for (const staffName of STAFF_ROLES) {
         const role =
-          guild.roles.cache.find(
-            (r) => r.name === roleName
+          findRole(
+            interaction.guild,
+            staffName
           );
 
         if (role) {
-          overwrites.push({
+          staffOverwrites.push({
             id: role.id,
             allow: [
               PermissionFlagsBits.ViewChannel,
@@ -1227,12 +1321,39 @@ client.on(
         }
       }
 
+      const ticketName =
+        `ticket-${interaction.user.username
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "")
+          .slice(0, 20)}`;
+
       const ticket =
-        await guild.channels.create({
-          name: `ticket-${interaction.user.id}`,
+        await interaction.guild.channels.create({
+          name: ticketName,
           type: ChannelType.GuildText,
-          parent: category.id,
-          permissionOverwrites: overwrites,
+          parent:
+            supportCategory?.id || null,
+          permissionOverwrites: [
+            {
+              id: interaction.guild.roles
+                .everyone.id,
+              deny: [
+                PermissionFlagsBits.ViewChannel,
+              ],
+            },
+
+            {
+              id: interaction.user.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.AttachFiles,
+              ],
+            },
+
+            ...staffOverwrites,
+          ],
         });
 
       const closeButton =
@@ -1247,78 +1368,98 @@ client.on(
         );
 
       await ticket.send({
-        content: `🎫 **TICKET OPENED**
-
-Welcome ${interaction.user}!
-
-Tell us what you need help with.
-
-A staff member will respond shortly.`,
+        content: `${interaction.user}`,
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("🎫 ticket")
+            .setDescription(
+              [
+                "yo! staff will be with you soon.",
+                "",
+                "tell us what you need help with.",
+                "",
+                "`🔒` close the ticket when you're done.",
+              ].join("\n")
+            ),
+        ],
         components: [row],
       });
 
       await interaction.reply({
-        content: `✅ Ticket created: ${ticket}`,
+        content:
+          `\`🎫\` ticket created: ${ticket}`,
         ephemeral: true,
       });
 
       return;
     }
 
-    // =========================
+    // =================================================
     // CLOSE TICKET
-    // =========================
+    // =================================================
 
     if (
       interaction.isButton() &&
       interaction.customId ===
         "close_ticket"
     ) {
+      if (
+        !isStaff(interaction.member)
+      ) {
+        return interaction.reply({
+          content:
+            "`❌` only staff can close tickets.",
+          ephemeral: true,
+        });
+      }
+
       await interaction.reply(
-        "🔒 Closing this ticket in 3 seconds..."
+        "`🔒` closing ticket..."
       );
 
-      setTimeout(() => {
-        interaction.channel
-          .delete()
+      setTimeout(async () => {
+        await interaction.channel
+          .delete(
+            "ticket closed"
+          )
           .catch(() => {});
-      }, 3000);
+      }, 1500);
 
       return;
     }
 
-    // =========================
-    // MODERATOR APPLICATION
-    // =========================
+    // =================================================
+    // MOD APPLICATION
+    // =================================================
 
     if (
       interaction.isButton() &&
       interaction.customId ===
         "moderator_apply"
     ) {
-      const modal = new ModalBuilder()
-        .setCustomId(
-          "moderator_application"
-        )
-        .setTitle(
-          "Moderator Application"
-        );
+      const modal =
+        new ModalBuilder()
+          .setCustomId(
+            "moderator_application"
+          )
+          .setTitle(
+            "moderator application"
+          );
 
       const age =
         new TextInputBuilder()
           .setCustomId("age")
-          .setLabel("How old are you?")
+          .setLabel("age")
           .setStyle(
             TextInputStyle.Short
           )
-          .setRequired(true);
+          .setRequired(true)
+          .setMaxLength(3);
 
       const timezone =
         new TextInputBuilder()
           .setCustomId("timezone")
-          .setLabel(
-            "What is your timezone?"
-          )
+          .setLabel("timezone")
           .setStyle(
             TextInputStyle.Short
           )
@@ -1327,35 +1468,32 @@ A staff member will respond shortly.`,
       const experience =
         new TextInputBuilder()
           .setCustomId("experience")
-          .setLabel(
-            "Previous moderation experience?"
-          )
+          .setLabel("previous moderation experience")
           .setStyle(
             TextInputStyle.Paragraph
           )
-          .setRequired(true);
+          .setRequired(true)
+          .setMaxLength(1000);
 
       const why =
         new TextInputBuilder()
           .setCustomId("why")
-          .setLabel(
-            "Why should we choose you?"
-          )
+          .setLabel("why should we choose you?")
           .setStyle(
             TextInputStyle.Paragraph
           )
-          .setRequired(true);
+          .setRequired(true)
+          .setMaxLength(1500);
 
       const activity =
         new TextInputBuilder()
           .setCustomId("activity")
-          .setLabel(
-            "How active are you?"
-          )
+          .setLabel("how active are you?")
           .setStyle(
-            TextInputStyle.Short
+            TextInputStyle.Paragraph
           )
-          .setRequired(true);
+          .setRequired(true)
+          .setMaxLength(1000);
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(
@@ -1382,9 +1520,9 @@ A staff member will respond shortly.`,
       return;
     }
 
-    // =========================
-    // APPLICATION SUBMISSION
-    // =========================
+    // =================================================
+    // APPLICATION SUBMITTED
+    // =================================================
 
     if (
       interaction.isModalSubmit() &&
@@ -1392,71 +1530,68 @@ A staff member will respond shortly.`,
         "moderator_application"
     ) {
       const pending =
-        interaction.guild.channels.cache.find(
-          (channel) =>
-            channel.name ===
-            "⏳・pending"
+        findChannel(
+          interaction.guild,
+          "⏳・pending"
         );
 
       if (!pending) {
         return interaction.reply({
           content:
-            "❌ Pending channel doesn't exist.",
+            "`❌` application channel is missing. run `/setup`.",
           ephemeral: true,
         });
       }
 
-      const embed =
+      const age =
+        interaction.fields.getTextInputValue(
+          "age"
+        );
+
+      const timezone =
+        interaction.fields.getTextInputValue(
+          "timezone"
+        );
+
+      const experience =
+        interaction.fields.getTextInputValue(
+          "experience"
+        );
+
+      const why =
+        interaction.fields.getTextInputValue(
+          "why"
+        );
+
+      const activity =
+        interaction.fields.getTextInputValue(
+          "activity"
+        );
+
+      const application =
         new EmbedBuilder()
-          .setTitle(
-            "📝 Moderator Application"
-          )
+          .setTitle("📝 moderator application")
           .setDescription(
-            `Applicant: ${interaction.user}\nID: ${interaction.user.id}`
-          )
-          .addFields(
-            {
-              name: "Age",
-              value:
-                interaction.fields.getTextInputValue(
-                  "age"
-                ),
-            },
-            {
-              name: "Timezone",
-              value:
-                interaction.fields.getTextInputValue(
-                  "timezone"
-                ),
-            },
-            {
-              name: "Experience",
-              value:
-                interaction.fields.getTextInputValue(
-                  "experience"
-                ),
-            },
-            {
-              name:
-                "Why should we choose you?",
-              value:
-                interaction.fields.getTextInputValue(
-                  "why"
-                ),
-            },
-            {
-              name: "Activity",
-              value:
-                interaction.fields.getTextInputValue(
-                  "activity"
-                ),
-            }
+            [
+              `applicant: ${interaction.user}`,
+              `id: \`${interaction.user.id}\``,
+              "",
+              `**age**\n${age}`,
+              "",
+              `**timezone**\n${timezone}`,
+              "",
+              `**experience**\n${experience}`,
+              "",
+              `**why them**\n${why}`,
+              "",
+              `**activity**\n${activity}`,
+            ].join("\n")
           );
 
       const accept =
         new ButtonBuilder()
           .setCustomId(
-            `accept_${interaction.user.id}`
+            `app_accept_${interaction.user.id}`
           )
           .setLabel("✅ Accept")
           .setStyle(
@@ -1466,7 +1601,7 @@ A staff member will respond shortly.`,
       const deny =
         new ButtonBuilder()
           .setCustomId(
-            `deny_${interaction.user.id}`
+            `app_deny_${interaction.user.id}`
           )
           .setLabel("❌ Deny")
           .setStyle(
@@ -1480,32 +1615,27 @@ A staff member will respond shortly.`,
         );
 
       await pending.send({
-        embeds: [embed],
+        embeds: [application],
         components: [row],
       });
 
       await interaction.reply({
         content:
-          "✅ Your application has been submitted!",
+          "`✅` application sent. good luck :)",
         ephemeral: true,
       });
 
       return;
     }
 
-    // =========================
-    // ACCEPT / DENY APPLICATION
-    // =========================
+    // =================================================
+    // ACCEPT APPLICATION
+    // =================================================
 
     if (
       interaction.isButton() &&
-      (
-        interaction.customId.startsWith(
-          "accept_"
-        ) ||
-        interaction.customId.startsWith(
-          "deny_"
-        )
+      interaction.customId.startsWith(
+        "app_accept_"
       )
     ) {
       if (
@@ -1515,90 +1645,139 @@ A staff member will respond shortly.`,
       ) {
         return interaction.reply({
           content:
-            "❌ You need **Manage Server** permission.",
+            "`❌` you can't manage applications.",
           ephemeral: true,
         });
       }
 
-      const accepted =
-        interaction.customId.startsWith(
-          "accept_"
+      const userId =
+        interaction.customId.replace(
+          "app_accept_",
+          ""
         );
 
-      const applicantId =
-        interaction.customId.split("_")[1];
-
-      const applicant =
+      const member =
         await interaction.guild.members
-          .fetch(applicantId)
+          .fetch(userId)
           .catch(() => null);
 
-      if (accepted && applicant) {
-        const moderatorRole =
-          interaction.guild.roles.cache.find(
-            (role) =>
-              role.name ===
-              "🛡️ Moderator"
-          );
-
-        if (moderatorRole) {
-          await applicant.roles.add(
-            moderatorRole
-          );
-        }
-
-        await applicant
-          .send(
-            `🎉 Your moderator application for **${interaction.guild.name}** was accepted!`
-          )
-          .catch(() => {});
-      } else if (
-        !accepted &&
-        applicant
-      ) {
-        await applicant
-          .send(
-            `❌ Your moderator application for **${interaction.guild.name}** was denied.`
-          )
-          .catch(() => {});
+      if (!member) {
+        return interaction.reply({
+          content:
+            "`❌` that member isn't in the server anymore.",
+          ephemeral: true,
+        });
       }
 
-      const destinationName =
-        accepted
-          ? "✅・accepted"
-          : "❌・denied";
-
-      const destination =
-        interaction.guild.channels.cache.find(
-          (channel) =>
-            channel.name ===
-            destinationName
+      const moderator =
+        findRole(
+          interaction.guild,
+          ROLES.moderator
         );
 
-      if (destination) {
-        await destination.send(
-          `${accepted ? "✅" : "❌"} <@${applicantId}>'s application was **${
-            accepted
-              ? "accepted"
-              : "denied"
-          }** by ${interaction.user}.`
+      if (moderator) {
+        await member.roles.add(
+          moderator
         );
       }
 
-      await interaction.update({
-        content: `${
-          accepted
-            ? "✅ Application accepted"
-            : "❌ Application denied"
-        } by ${interaction.user}`,
+      const accepted =
+        findChannel(
+          interaction.guild,
+          "✅・accepted"
+        );
+
+      if (accepted) {
+        await accepted.send(
+          `✅ ${member} was accepted as a moderator.`
+        );
+      }
+
+      await interaction.message.edit({
         components: [],
       });
+
+      await interaction.reply(
+        "`✅` application accepted."
+      );
+
+      await member
+        .send(
+          `✅ **your moderator application was accepted!**\n\nwelcome to the staff team :)`
+        )
+        .catch(() => {});
+
+      return;
+    }
+
+    // =================================================
+    // DENY APPLICATION
+    // =================================================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith(
+        "app_deny_"
+      )
+    ) {
+      if (
+        !interaction.member.permissions.has(
+          PermissionFlagsBits.ManageGuild
+        )
+      ) {
+        return interaction.reply({
+          content:
+            "`❌` you can't manage applications.",
+          ephemeral: true,
+        });
+      }
+
+      const userId =
+        interaction.customId.replace(
+          "app_deny_",
+          ""
+        );
+
+      const member =
+        await interaction.guild.members
+          .fetch(userId)
+          .catch(() => null);
+
+      const denied =
+        findChannel(
+          interaction.guild,
+          "❌・denied"
+        );
+
+      if (denied) {
+        await denied.send(
+          `❌ application denied for <@${userId}>.`
+        );
+      }
+
+      await interaction.message.edit({
+        components: [],
+      });
+
+      await interaction.reply(
+        "`❌` application denied."
+      );
+
+      if (member) {
+        await member
+          .send(
+            `❌ **your moderator application was denied.**\n\nthanks for applying. you can always try again later.`
+          )
+          .catch(() => {});
+      }
+
+      return;
     }
   }
 );
 
-// =========================
-// LOGIN
-// =========================
+// =====================================================
+// login
+// =====================================================
 
 client.login(TOKEN);
