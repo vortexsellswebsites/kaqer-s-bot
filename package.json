@@ -1,0 +1,12 @@
+{
+  "name": "community-discord-bot",
+  "version": "1.0.0",
+  "description": "Automatic Discord Community server setup bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1"
+  }
+}
