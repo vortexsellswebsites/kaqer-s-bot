@@ -11,15 +11,10 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  SlashCommandBuilder,
   ChannelType,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  SlashCommandBuilder
 } = require("discord.js");
-
-const fs = require("fs");
 
 // ==========================================
 // CONFIG
@@ -64,43 +59,107 @@ const client = new Client({
 });
 
 // ==========================================
-// DATA
+// COMMANDS
+// ONLY FUN + CHANNEL STUFF
 // ==========================================
 
-const DATA_FILE = "./data.json";
+const commands = [
 
-let data = {
-  xp: {},
-  bios: {},
-  friends: {},
-  confessions: 0
-};
+  // ==============================
+  // FUN
+  // ==============================
 
-if (fs.existsSync(DATA_FILE)) {
-  try {
-    const saved = JSON.parse(
-      fs.readFileSync(DATA_FILE, "utf8")
-    );
+  new SlashCommandBuilder()
+    .setName("coinflip")
+    .setDescription("flip a coin"),
 
-    data = {
-      ...data,
-      ...saved
-    };
-  } catch (error) {
-    console.log("⚠️ data.json could not be loaded.");
-  }
-}
+  new SlashCommandBuilder()
+    .setName("8ball")
+    .setDescription("ask the magic 8-ball")
+    .addStringOption(option =>
+      option
+        .setName("question")
+        .setDescription("your question")
+        .setRequired(true)
+    ),
 
-function saveData() {
-  try {
-    fs.writeFileSync(
-      DATA_FILE,
-      JSON.stringify(data, null, 2)
-    );
-  } catch (error) {
-    console.error("❌ Could not save data:", error);
-  }
-}
+  new SlashCommandBuilder()
+    .setName("rps")
+    .setDescription("play rock paper scissors")
+    .addStringOption(option =>
+      option
+        .setName("choice")
+        .setDescription("your move")
+        .setRequired(true)
+        .addChoices(
+          {
+            name: "rock",
+            value: "rock"
+          },
+          {
+            name: "paper",
+            value: "paper"
+          },
+          {
+            name: "scissors",
+            value: "scissors"
+          }
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName("wouldyourather")
+    .setDescription("get a random would-you-rather"),
+
+  new SlashCommandBuilder()
+    .setName("trivia")
+    .setDescription("get a random trivia question"),
+
+  // ==============================
+  // SERVER CHANNEL STUFF
+  // ==============================
+
+  new SlashCommandBuilder()
+    .setName("suggest")
+    .setDescription("send a suggestion")
+    .addStringOption(option =>
+      option
+        .setName("suggestion")
+        .setDescription("your suggestion")
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("confess")
+    .setDescription("send an anonymous confession")
+    .addStringOption(option =>
+      option
+        .setName("message")
+        .setDescription("your confession")
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("ticket")
+    .setDescription("create a support ticket"),
+
+  new SlashCommandBuilder()
+    .setName("partner")
+    .setDescription("apply for a partnership")
+    .addStringOption(option =>
+      option
+        .setName("server")
+        .setDescription("server name")
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName("invite")
+        .setDescription("discord invite")
+        .setRequired(true)
+    )
+
+].map(command => command.toJSON());
 
 // ==========================================
 // HELPERS
@@ -112,172 +171,8 @@ function findChannel(guild, names) {
   );
 }
 
-function getXP(userId) {
-  return data.xp[userId] || 0;
-}
-
-function getLevel(xp) {
-  return Math.floor(xp / 100);
-}
-
-function addXP(userId, amount) {
-  data.xp[userId] = getXP(userId) + amount;
-  saveData();
-}
-
 // ==========================================
-// SELF ROLES
-// NO AGE ROLES
-// ==========================================
-
-const SELF_ROLES = {
-  // Pronouns
-  "role_she": "she/her",
-  "role_he": "he/him",
-  "role_they": "they/them",
-  "role_any": "any pronouns",
-  "role_ask": "ask",
-
-  // Interests
-  "role_gaming": "Gaming",
-  "role_music": "Music",
-  "role_art": "Art",
-  "role_anime": "Anime",
-  "role_coding": "Coding",
-  "role_movies": "Movies",
-  "role_reading": "Reading",
-  "role_photo": "Photography",
-
-  // Vibes
-  "role_cute": "Cute",
-  "role_soft": "Soft",
-  "role_chill": "Chill",
-  "role_chaotic": "Chaotic",
-  "role_social": "Social",
-  "role_quiet": "Quiet",
-  "role_funny": "Funny",
-
-  // Notifications
-  "role_announcements": "Announcements",
-  "role_events": "Events",
-  "role_giveaways": "Giveaways",
-  "role_updates": "Updates"
-};
-
-// ==========================================
-// COMMANDS
-// ==========================================
-
-const commands = [
-
-  new SlashCommandBuilder()
-    .setName("coinflip")
-    .setDescription("Flip a coin"),
-
-  new SlashCommandBuilder()
-    .setName("8ball")
-    .setDescription("Ask the magic 8-ball")
-    .addStringOption(option =>
-      option
-        .setName("question")
-        .setDescription("Your question")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("rps")
-    .setDescription("Play rock paper scissors")
-    .addStringOption(option =>
-      option
-        .setName("choice")
-        .setDescription("Choose your move")
-        .setRequired(true)
-        .addChoices(
-          { name: "Rock", value: "rock" },
-          { name: "Paper", value: "paper" },
-          { name: "Scissors", value: "scissors" }
-        )
-    ),
-
-  new SlashCommandBuilder()
-    .setName("wouldyourather")
-    .setDescription("Get a random would-you-rather"),
-
-  new SlashCommandBuilder()
-    .setName("trivia")
-    .setDescription("Get a random trivia question"),
-
-  new SlashCommandBuilder()
-    .setName("profile")
-    .setDescription("View a profile")
-    .addUserOption(option =>
-      option
-        .setName("user")
-        .setDescription("User to view")
-        .setRequired(false)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("bio")
-    .setDescription("Edit your profile bio"),
-
-  new SlashCommandBuilder()
-    .setName("friends")
-    .setDescription("View your friends"),
-
-  new SlashCommandBuilder()
-    .setName("leaderboard")
-    .setDescription("View the XP leaderboard"),
-
-  new SlashCommandBuilder()
-    .setName("suggest")
-    .setDescription("Send a suggestion")
-    .addStringOption(option =>
-      option
-        .setName("suggestion")
-        .setDescription("Your suggestion")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("confess")
-    .setDescription("Send an anonymous confession")
-    .addStringOption(option =>
-      option
-        .setName("message")
-        .setDescription("Your confession")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("ticket")
-    .setDescription("Create a support ticket"),
-
-  new SlashCommandBuilder()
-    .setName("partner")
-    .setDescription("Apply for a partnership")
-    .addStringOption(option =>
-      option
-        .setName("server")
-        .setDescription("Server name")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("invite")
-        .setDescription("Discord invite")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("restart")
-    .setDescription("Restart the bot")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-
-].map(command => command.toJSON());
-
-// ==========================================
-// READY + COMMAND REGISTRATION
+// READY
 // ==========================================
 
 client.once("ready", async () => {
@@ -295,10 +190,7 @@ client.once("ready", async () => {
       return;
     }
 
-    // Register commands directly to THIS server.
-    // This makes them appear immediately instead
-    // of waiting for global Discord command sync.
-
+    // register ONLY the commands above
     await guild.commands.set(commands);
 
     console.log(
@@ -310,8 +202,10 @@ client.once("ready", async () => {
     });
 
   } catch (error) {
+
     console.error("❌ Command registration error:");
     console.error(error);
+
   }
 
 });
@@ -336,7 +230,9 @@ client.on("guildMemberAdd", async member => {
       `welcome to **${member.guild.name}**!\n` +
       `make yourself comfy and have fun!`
     )
-    .setThumbnail(member.user.displayAvatarURL())
+    .setThumbnail(
+      member.user.displayAvatarURL()
+    )
     .setTimestamp();
 
   await channel.send({
@@ -376,6 +272,7 @@ client.on("guildMemberRemove", async member => {
 // XP
 // ==========================================
 
+const xp = {};
 const xpCooldown = new Set();
 
 client.on("messageCreate", async message => {
@@ -389,10 +286,9 @@ client.on("messageCreate", async message => {
 
   xpCooldown.add(userId);
 
-  const amount =
+  xp[userId] =
+    (xp[userId] || 0) +
     Math.floor(Math.random() * 8) + 5;
-
-  addXP(userId, amount);
 
   setTimeout(() => {
     xpCooldown.delete(userId);
@@ -409,21 +305,60 @@ client.on("interactionCreate", async interaction => {
   try {
 
     // ======================================
-    // SELF ROLE BUTTONS
+    // BUTTONS
     // ======================================
 
     if (interaction.isButton()) {
 
+      // ==============================
+      // SELF ROLE BUTTON
+      // ==============================
+
       if (interaction.customId.startsWith("role_")) {
+
+        const SELF_ROLES = {
+
+          role_she: "she/her",
+          role_he: "he/him",
+          role_they: "they/them",
+          role_any: "any pronouns",
+          role_ask: "ask",
+
+          role_gaming: "Gaming",
+          role_music: "Music",
+          role_art: "Art",
+          role_anime: "Anime",
+          role_coding: "Coding",
+          role_movies: "Movies",
+          role_reading: "Reading",
+          role_photo: "Photography",
+
+          role_cute: "Cute",
+          role_soft: "Soft",
+          role_chill: "Chill",
+          role_chaotic: "Chaotic",
+          role_social: "Social",
+          role_quiet: "Quiet",
+          role_funny: "Funny",
+
+          role_announcements: "Announcements",
+          role_events: "Events",
+          role_giveaways: "Giveaways",
+          role_updates: "Updates"
+
+        };
 
         const roleName =
           SELF_ROLES[interaction.customId];
 
         if (!roleName) {
+
           return interaction.reply({
-            content: "❌ That role no longer exists.",
+            content:
+              "❌ that role button doesn't work anymore.",
             ephemeral: true
           });
+
         }
 
         const role =
@@ -432,11 +367,13 @@ client.on("interactionCreate", async interaction => {
           );
 
         if (!role) {
+
           return interaction.reply({
             content:
-              `❌ The **${roleName}** role doesn't exist yet.`,
+              `❌ the **${roleName}** role doesn't exist.`,
             ephemeral: true
           });
+
         }
 
         const member =
@@ -444,28 +381,29 @@ client.on("interactionCreate", async interaction => {
             interaction.user.id
           );
 
-        // Pronouns are exclusive.
-        if (
-          [
-            "role_she",
-            "role_he",
-            "role_they",
-            "role_any",
-            "role_ask"
-          ].includes(interaction.customId)
-        ) {
+        // ==============================
+        // PRONOUNS
+        // ONLY ONE AT A TIME
+        // ==============================
 
-          const pronounIds = [
-            "role_she",
-            "role_he",
-            "role_they",
-            "role_any",
-            "role_ask"
-          ];
+        const pronounIds = [
+          "role_she",
+          "role_he",
+          "role_they",
+          "role_any",
+          "role_ask"
+        ];
+
+        if (
+          pronounIds.includes(
+            interaction.customId
+          )
+        ) {
 
           for (const id of pronounIds) {
 
-            const otherName = SELF_ROLES[id];
+            const otherName =
+              SELF_ROLES[id];
 
             const otherRole =
               interaction.guild.roles.cache.find(
@@ -477,83 +415,80 @@ client.on("interactionCreate", async interaction => {
               otherRole.id !== role.id &&
               member.roles.cache.has(otherRole.id)
             ) {
-              await member.roles.remove(otherRole);
+
+              await member.roles.remove(
+                otherRole
+              ).catch(() => {});
+
             }
+
           }
+
         }
 
-        // Toggle selected role.
-        if (member.roles.cache.has(role.id)) {
+        // ==============================
+        // TOGGLE ROLE
+        // ==============================
+
+        if (
+          member.roles.cache.has(role.id)
+        ) {
 
           await member.roles.remove(role);
 
           return interaction.reply({
-            content: `♡ removed **${roleName}**`,
-            ephemeral: true
-          });
-
-        } else {
-
-          await member.roles.add(role);
-
-          return interaction.reply({
-            content: `♡ added **${roleName}**`,
+            content:
+              `♡ removed **${roleName}**`,
             ephemeral: true
           });
 
         }
+
+        await member.roles.add(role);
+
+        return interaction.reply({
+          content:
+            `♡ added **${roleName}**`,
+          ephemeral: true
+        });
+
       }
 
-      // ====================================
+      // ==============================
       // CLOSE TICKET
-      // ====================================
+      // ==============================
 
-      if (interaction.customId === "close_ticket") {
+      if (
+        interaction.customId === "close_ticket"
+      ) {
 
         await interaction.reply(
-          "♡ closing this ticket..."
+          "🔒 closing this ticket..."
         );
 
         setTimeout(() => {
-          interaction.channel.delete().catch(() => {});
+
+          interaction.channel
+            .delete()
+            .catch(() => {});
+
         }, 1500);
 
         return;
       }
-    }
 
-    // ======================================
-    // MODAL
-    // ======================================
-
-    if (interaction.isModalSubmit()) {
-
-      if (interaction.customId === "bio_modal") {
-
-        const bio =
-          interaction.fields.getTextInputValue(
-            "bio_input"
-          );
-
-        data.bios[interaction.user.id] =
-          bio || "no bio yet ♡";
-
-        saveData();
-
-        return interaction.reply({
-          content: "♡ your bio was updated!",
-          ephemeral: true
-        });
-      }
     }
 
     // ======================================
     // SLASH COMMANDS
     // ======================================
 
-    if (!interaction.isChatInputCommand()) return;
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
 
-    const command = interaction.commandName;
+    const command =
+      interaction.commandName;
 
     // ======================================
     // COINFLIP
@@ -569,6 +504,7 @@ client.on("interactionCreate", async interaction => {
       return interaction.reply(
         `♡ the coin landed on **${result}**!`
       );
+
     }
 
     // ======================================
@@ -578,7 +514,9 @@ client.on("interactionCreate", async interaction => {
     if (command === "8ball") {
 
       const question =
-        interaction.options.getString("question");
+        interaction.options.getString(
+          "question"
+        );
 
       const answers = [
         "yes ♡",
@@ -590,30 +528,37 @@ client.on("interactionCreate", async interaction => {
         "i think so ♡",
         "not looking good 😭",
         "absolutely!",
-        "i wouldn't count on it"
+        "i wouldn't count on it",
+        "100% 😭",
+        "nahhh 💀"
       ];
 
       const answer =
         answers[
-          Math.floor(Math.random() * answers.length)
+          Math.floor(
+            Math.random() *
+            answers.length
+          )
         ];
 
-      const embed = new EmbedBuilder()
-        .setTitle("🎱 magic 8-ball")
-        .addFields(
-          {
-            name: "question",
-            value: question
-          },
-          {
-            name: "answer",
-            value: answer
-          }
-        );
+      const embed =
+        new EmbedBuilder()
+          .setTitle("🎱 magic 8-ball")
+          .addFields(
+            {
+              name: "question",
+              value: question
+            },
+            {
+              name: "answer",
+              value: answer
+            }
+          );
 
       return interaction.reply({
         embeds: [embed]
       });
+
     }
 
     // ======================================
@@ -623,7 +568,9 @@ client.on("interactionCreate", async interaction => {
     if (command === "rps") {
 
       const player =
-        interaction.options.getString("choice");
+        interaction.options.getString(
+          "choice"
+        );
 
       const choices = [
         "rock",
@@ -633,21 +580,40 @@ client.on("interactionCreate", async interaction => {
 
       const bot =
         choices[
-          Math.floor(Math.random() * choices.length)
+          Math.floor(
+            Math.random() *
+            choices.length
+          )
         ];
 
       let result;
 
       if (player === bot) {
-        result = "it's a tie! 🤝";
+
+        result =
+          "it's a tie! 🤝";
+
       } else if (
-        (player === "rock" && bot === "scissors") ||
-        (player === "paper" && bot === "rock") ||
-        (player === "scissors" && bot === "paper")
+
+        (player === "rock" &&
+          bot === "scissors") ||
+
+        (player === "paper" &&
+          bot === "rock") ||
+
+        (player === "scissors" &&
+          bot === "paper")
+
       ) {
-        result = "you win! 🎉";
+
+        result =
+          "you win! 🎉";
+
       } else {
-        result = "i win 😼";
+
+        result =
+          "i win 😼";
+
       }
 
       return interaction.reply(
@@ -655,6 +621,7 @@ client.on("interactionCreate", async interaction => {
         `♡ i chose **${bot}**\n\n` +
         `**${result}**`
       );
+
     }
 
     // ======================================
@@ -664,24 +631,44 @@ client.on("interactionCreate", async interaction => {
     if (command === "wouldyourather") {
 
       const questions = [
-        "Would you rather fly or be invisible?",
-        "Would you rather have unlimited money or unlimited free time?",
-        "Would you rather live in the city or countryside?",
-        "Would you rather always be early or always be late?",
-        "Would you rather have a cat or a dog?",
-        "Would you rather be famous or rich?",
-        "Would you rather travel everywhere for free or eat everywhere for free?",
-        "Would you rather never use TikTok again or never use Discord again?"
+
+        "would you rather fly or be invisible?",
+
+        "would you rather have unlimited money or unlimited free time?",
+
+        "would you rather live in the city or countryside?",
+
+        "would you rather always be early or always be late?",
+
+        "would you rather have a cat or a dog?",
+
+        "would you rather be famous or rich?",
+
+        "would you rather travel everywhere for free or eat everywhere for free?",
+
+        "would you rather never use TikTok again or never use Discord again?",
+
+        "would you rather have your dream car or dream house?",
+
+        "would you rather be able to teleport or time travel?",
+
+        "would you rather have unlimited V-Bucks or unlimited Robux?",
+
+        "would you rather never sleep or never eat?"
       ];
 
       const question =
         questions[
-          Math.floor(Math.random() * questions.length)
+          Math.floor(
+            Math.random() *
+            questions.length
+          )
         ];
 
       return interaction.reply(
         `♡ **would you rather...**\n\n${question}`
       );
+
     }
 
     // ======================================
@@ -691,228 +678,138 @@ client.on("interactionCreate", async interaction => {
     if (command === "trivia") {
 
       const trivia = [
+
         {
-          q: "What is the largest planet?",
+          q: "what is the largest planet?",
           a: "Jupiter"
         },
+
         {
-          q: "How many continents are there?",
+          q: "how many continents are there?",
           a: "7"
         },
+
         {
-          q: "What is the capital of Japan?",
+          q: "what is the capital of Japan?",
           a: "Tokyo"
         },
+
         {
-          q: "How many sides does a hexagon have?",
+          q: "how many sides does a hexagon have?",
           a: "6"
         },
+
         {
-          q: "What is the fastest land animal?",
+          q: "what is the fastest land animal?",
           a: "Cheetah"
+        },
+
+        {
+          q: "what planet is known as the red planet?",
+          a: "Mars"
+        },
+
+        {
+          q: "how many days are in a leap year?",
+          a: "366"
+        },
+
+        {
+          q: "what is the largest ocean?",
+          a: "Pacific Ocean"
+        },
+
+        {
+          q: "what animal is known as the king of the jungle?",
+          a: "Lion"
         }
+
       ];
 
       const question =
         trivia[
-          Math.floor(Math.random() * trivia.length)
+          Math.floor(
+            Math.random() *
+            trivia.length
+          )
         ];
 
-      const embed = new EmbedBuilder()
-        .setTitle("🧠 trivia")
-        .setDescription(question.q)
-        .setFooter({
-          text: `answer: ${question.a}`
-        });
+      const embed =
+        new EmbedBuilder()
+          .setTitle("🧠 trivia")
+          .setDescription(
+            `**${question.q}**`
+          )
+          .setFooter({
+            text:
+              `answer: ${question.a}`
+          });
 
       return interaction.reply({
         embeds: [embed]
       });
+
     }
 
     // ======================================
-    // PROFILE
-    // ======================================
-
-    if (command === "profile") {
-
-      const user =
-        interaction.options.getUser("user") ||
-        interaction.user;
-
-      const xp = getXP(user.id);
-      const level = getLevel(xp);
-
-      const bio =
-        data.bios[user.id] ||
-        "no bio yet ♡";
-
-      const embed = new EmbedBuilder()
-        .setTitle(`♡ ${user.username}'s profile`)
-        .setThumbnail(user.displayAvatarURL())
-        .addFields(
-          {
-            name: "level",
-            value: `${level}`,
-            inline: true
-          },
-          {
-            name: "XP",
-            value: `${xp}`,
-            inline: true
-          },
-          {
-            name: "bio",
-            value: bio
-          }
-        );
-
-      return interaction.reply({
-        embeds: [embed]
-      });
-    }
-
-    // ======================================
-    // BIO
-    // ======================================
-
-    if (command === "bio") {
-
-      const modal = new ModalBuilder()
-        .setCustomId("bio_modal")
-        .setTitle("♡ edit your bio");
-
-      const input = new TextInputBuilder()
-        .setCustomId("bio_input")
-        .setLabel("your bio")
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder(
-          "tell everyone about yourself ♡"
-        )
-        .setMaxLength(200)
-        .setRequired(false);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(input)
-      );
-
-      return interaction.showModal(modal);
-    }
-
-    // ======================================
-    // FRIENDS
-    // ======================================
-
-    if (command === "friends") {
-
-      const friends =
-        data.friends[interaction.user.id] || [];
-
-      if (!friends.length) {
-        return interaction.reply(
-          "♡ you don't have any friends added yet!"
-        );
-      }
-
-      const names = [];
-
-      for (const id of friends) {
-
-        const user =
-          await client.users.fetch(id).catch(() => null);
-
-        if (user) {
-          names.push(`♡ ${user.username}`);
-        }
-      }
-
-      return interaction.reply(
-        `**your friends ♡**\n\n${names.join("\n")}`
-      );
-    }
-
-    // ======================================
-    // LEADERBOARD
-    // ======================================
-
-    if (command === "leaderboard") {
-
-      const sorted =
-        Object.entries(data.xp)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10);
-
-      if (!sorted.length) {
-        return interaction.reply(
-          "♡ nobody has earned XP yet!"
-        );
-      }
-
-      const lines = [];
-
-      for (let i = 0; i < sorted.length; i++) {
-
-        const [id, xp] = sorted[i];
-
-        const user =
-          await client.users.fetch(id).catch(() => null);
-
-        if (!user) continue;
-
-        lines.push(
-          `**${i + 1}.** ${user.username} — ${xp} XP`
-        );
-      }
-
-      return interaction.reply(
-        `🏆 **XP leaderboard**\n\n${lines.join("\n")}`
-      );
-    }
-
-    // ======================================
-    // SUGGEST
+    // SUGGESTION
     // ======================================
 
     if (command === "suggest") {
 
       const suggestion =
-        interaction.options.getString("suggestion");
+        interaction.options.getString(
+          "suggestion"
+        );
 
       const channel =
-        findChannel(interaction.guild, [
-          "suggestions",
-          "୨୧・suggestions"
-        ]);
+        findChannel(
+          interaction.guild,
+          [
+            "suggestions",
+            "୨୧・suggestions"
+          ]
+        );
 
       if (!channel) {
+
         return interaction.reply({
           content:
-            "❌ I couldn't find the suggestions channel.",
+            "❌ i couldn't find the suggestions channel.",
           ephemeral: true
         });
+
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle("💡 new suggestion")
-        .setDescription(suggestion)
-        .setFooter({
-          text:
-            `suggested by ${interaction.user.username}`
-        })
-        .setTimestamp();
+      const embed =
+        new EmbedBuilder()
+          .setTitle("💡 new suggestion")
+          .setDescription(
+            suggestion
+          )
+          .setFooter({
+            text:
+              `suggested by ${interaction.user.username}`
+          })
+          .setTimestamp();
 
       const message =
         await channel.send({
           embeds: [embed]
         });
 
-      await message.react("👍").catch(() => {});
-      await message.react("👎").catch(() => {});
+      await message.react("👍")
+        .catch(() => {});
+
+      await message.react("👎")
+        .catch(() => {});
 
       return interaction.reply({
-        content: "♡ your suggestion was sent!",
+        content:
+          "♡ your suggestion was sent!",
         ephemeral: true
       });
+
     }
 
     // ======================================
@@ -922,32 +819,41 @@ client.on("interactionCreate", async interaction => {
     if (command === "confess") {
 
       const message =
-        interaction.options.getString("message");
+        interaction.options.getString(
+          "message"
+        );
 
       const channel =
-        findChannel(interaction.guild, [
-          "confessions",
-          "୨୧・confessions"
-        ]);
+        findChannel(
+          interaction.guild,
+          [
+            "confessions",
+            "୨୧・confessions"
+          ]
+        );
 
       if (!channel) {
+
         return interaction.reply({
           content:
-            "❌ I couldn't find the confessions channel.",
+            "❌ i couldn't find the confessions channel.",
           ephemeral: true
         });
+
       }
 
-      data.confessions++;
+      const number =
+        Date.now().toString().slice(-5);
 
-      saveData();
-
-      const embed = new EmbedBuilder()
-        .setTitle(
-          `♡ anonymous confession #${data.confessions}`
-        )
-        .setDescription(message)
-        .setTimestamp();
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            `♡ anonymous confession #${number}`
+          )
+          .setDescription(
+            message
+          )
+          .setTimestamp();
 
       await channel.send({
         embeds: [embed]
@@ -958,6 +864,7 @@ client.on("interactionCreate", async interaction => {
           "♡ your confession was posted anonymously!",
         ephemeral: true
       });
+
     }
 
     // ======================================
@@ -974,66 +881,115 @@ client.on("interactionCreate", async interaction => {
         );
 
       if (existing) {
+
         return interaction.reply({
           content:
             `♡ you already have a ticket: ${existing}`,
           ephemeral: true
         });
+
       }
 
       const category =
-        findChannel(interaction.guild, [
-          "004・tickets",
-          "004・TICKETS",
-          "tickets"
-        ]);
+        findChannel(
+          interaction.guild,
+          [
+            "004・tickets",
+            "004・TICKETS",
+            "tickets"
+          ]
+        );
 
       const channel =
         await interaction.guild.channels.create({
-          name: `ticket-${interaction.user.id}`,
-          type: ChannelType.GuildText,
-          parent: category?.id || null,
+
+          name:
+            `ticket-${interaction.user.id}`,
+
+          type:
+            ChannelType.GuildText,
+
+          parent:
+            category?.id || null,
+
           permissionOverwrites: [
+
             {
-              id: interaction.guild.roles.everyone.id,
+              id:
+                interaction.guild.roles.everyone.id,
+
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
             },
+
             {
-              id: interaction.user.id,
+              id:
+                interaction.user.id,
+
               allow: [
                 PermissionFlagsBits.ViewChannel,
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.ReadMessageHistory
               ]
+            },
+
+            {
+              id:
+                OWNER_ID,
+
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.ManageChannels
+              ]
             }
+
           ]
+
         });
 
       const closeButton =
         new ButtonBuilder()
-          .setCustomId("close_ticket")
-          .setLabel("Close Ticket")
+          .setCustomId(
+            "close_ticket"
+          )
+          .setLabel(
+            "close ticket"
+          )
           .setEmoji("🔒")
-          .setStyle(ButtonStyle.Danger);
+          .setStyle(
+            ButtonStyle.Danger
+          );
 
       const row =
         new ActionRowBuilder()
-          .addComponents(closeButton);
+          .addComponents(
+            closeButton
+          );
 
       await channel.send({
+
         content:
           `${interaction.user} ♡ welcome to your ticket!\n\n` +
-          `Tell us what you need help with.`,
-        components: [row]
+          `tell us what you need help with.`,
+
+        components: [
+          row
+        ]
+
       });
 
       return interaction.reply({
+
         content:
           `♡ your ticket has been created: ${channel}`,
+
         ephemeral: true
+
       });
+
     }
 
     // ======================================
@@ -1043,98 +999,93 @@ client.on("interactionCreate", async interaction => {
     if (command === "partner") {
 
       const server =
-        interaction.options.getString("server");
+        interaction.options.getString(
+          "server"
+        );
 
       const invite =
-        interaction.options.getString("invite");
+        interaction.options.getString(
+          "invite"
+        );
 
       const channel =
-        findChannel(interaction.guild, [
-          "partnerships",
-          "୨୧・partnerships"
-        ]);
+        findChannel(
+          interaction.guild,
+          [
+            "partnerships",
+            "୨୧・partnerships"
+          ]
+        );
 
       if (!channel) {
+
         return interaction.reply({
           content:
-            "❌ I couldn't find the partnerships channel.",
+            "❌ i couldn't find the partnerships channel.",
           ephemeral: true
         });
+
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle("🤝 partnership application")
-        .addFields(
-          {
-            name: "server",
-            value: server
-          },
-          {
-            name: "invite",
-            value: invite
-          },
-          {
-            name: "applicant",
-            value: `${interaction.user}`
-          }
-        )
-        .setTimestamp();
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            "🤝 partnership application"
+          )
+          .addFields(
+
+            {
+              name: "server",
+              value: server
+            },
+
+            {
+              name: "invite",
+              value: invite
+            },
+
+            {
+              name: "applicant",
+              value:
+                `${interaction.user}`
+            }
+
+          )
+          .setTimestamp();
 
       await channel.send({
         embeds: [embed]
       });
 
       return interaction.reply({
+
         content:
           "♡ your partnership application was sent!",
+
         ephemeral: true
+
       });
-    }
 
-    // ======================================
-    // RESTART
-    // ======================================
-
-    if (command === "restart") {
-
-      if (interaction.user.id !== OWNER_ID) {
-        return interaction.reply({
-          content:
-            "❌ Only the bot owner can use this command.",
-          ephemeral: true
-        });
-      }
-
-      await interaction.reply(
-        "🔄 restarting the bot..."
-      );
-
-      console.log(
-        `🔄 Restart requested by ${interaction.user.tag}`
-      );
-
-      setTimeout(() => {
-        client.destroy();
-
-        // Railway will restart the process.
-        process.exit(0);
-      }, 1500);
-
-      return;
     }
 
   } catch (error) {
 
-    console.error("❌ Interaction error:");
+    console.error(
+      "❌ Interaction error:"
+    );
+
     console.error(error);
 
     try {
 
-      if (interaction.replied || interaction.deferred) {
+      if (
+        interaction.replied ||
+        interaction.deferred
+      ) {
 
         await interaction.followUp({
           content:
-            "❌ Something went wrong while running that.",
+            "❌ something went wrong.",
           ephemeral: true
         });
 
@@ -1142,7 +1093,7 @@ client.on("interactionCreate", async interaction => {
 
         await interaction.reply({
           content:
-            "❌ Something went wrong while running that.",
+            "❌ something went wrong.",
           ephemeral: true
         });
 
@@ -1159,16 +1110,37 @@ client.on("interactionCreate", async interaction => {
 // ==========================================
 
 client.on("error", error => {
-  console.error("❌ Discord client error:", error);
+
+  console.error(
+    "❌ Discord client error:",
+    error
+  );
+
 });
 
-process.on("unhandledRejection", error => {
-  console.error("❌ Unhandled rejection:", error);
-});
+process.on(
+  "unhandledRejection",
+  error => {
 
-process.on("uncaughtException", error => {
-  console.error("❌ Uncaught exception:", error);
-});
+    console.error(
+      "❌ Unhandled rejection:",
+      error
+    );
+
+  }
+);
+
+process.on(
+  "uncaughtException",
+  error => {
+
+    console.error(
+      "❌ Uncaught exception:",
+      error
+    );
+
+  }
+);
 
 // ==========================================
 // LOGIN
