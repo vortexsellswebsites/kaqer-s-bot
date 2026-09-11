@@ -12,24 +12,9 @@ const {
   TextInputBuilder,
   TextInputStyle,
   SlashCommandBuilder
-} = require('discord.js');
+} = require("discord.js");
 
-const fs = require('fs');
-
-/* =========================
-   TOKEN
-========================= */
-
-const TOKEN = process.env.TOKEN;
-
-if (!TOKEN) {
-  console.error('❌ TOKEN is missing from Railway variables.');
-  process.exit(1);
-}
-
-/* =========================
-   CLIENT
-========================= */
+const fs = require("fs");
 
 const client = new Client({
   intents: [
@@ -39,218 +24,182 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions
   ],
-  partials: [
-    Partials.Message,
-    Partials.Channel,
-    Partials.Reaction
-  ]
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
-/* =========================
-   DATA
-========================= */
-
-const DATA_FILE = './data.json';
+const DATA_FILE = "./data.json";
 
 let data = {
   xp: {},
   warnings: {},
   bios: {},
   friends: {},
-  channels: {}
+  tickets: {},
+  channels: {},
+  sendUsed: false
 };
 
 if (fs.existsSync(DATA_FILE)) {
   try {
-    const saved = JSON.parse(
-      fs.readFileSync(DATA_FILE, 'utf8')
-    );
-
     data = {
-      xp: {},
-      warnings: {},
-      bios: {},
-      friends: {},
-      channels: {},
-      ...saved
+      ...data,
+      ...JSON.parse(fs.readFileSync(DATA_FILE, "utf8"))
     };
   } catch {
-    console.log('⚠️ data.json could not be loaded.');
+    console.log("Could not read data.json, using fresh data.");
   }
 }
 
 function saveData() {
-  try {
-    fs.writeFileSync(
-      DATA_FILE,
-      JSON.stringify(data, null, 2)
-    );
-  } catch (err) {
-    console.error('❌ Could not save data:', err);
-  }
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
-
-/* =========================
-   RESET LOCK
-========================= */
-
-let resetting = false;
 
 /* =========================
    ROLES
 ========================= */
 
 const ROLES = [
-  /* SELF / IDENTIFICATION */
-
+  // Basic
   {
-    name: '୨୧・she/her',
-    color: 0xffb6d9
+    name: "Member",
+    color: 0xffdce8
   },
 
+  // Self roles
   {
-    name: '୨୧・he/him',
-    color: 0x9ec5fe
+    name: "୨୧・she/her",
+    color: 0xffb6d5
   },
-
   {
-    name: '୨୧・they/them',
-    color: 0xcdb4db
+    name: "୨୧・he/him",
+    color: 0xaecbff
   },
-
   {
-    name: '୨୧・minor',
-    color: 0xffc8dd
+    name: "୨୧・they/them",
+    color: 0xcdb4ff
   },
-
-  /* INTERESTS */
-
   {
-    name: '୨୧・gamer',
-    color: 0xa2d2ff
-  },
-
-  {
-    name: '୨୧・artist',
-    color: 0xffadad
-  },
-
-  {
-    name: '୨୧・music',
-    color: 0xbde0fe
-  },
-
-  {
-    name: '୨୧・anime',
-    color: 0xffc8dd
-  },
-
-  {
-    name: '୨୧・creator',
-    color: 0xcdb4db
-  },
-
-  /* VIBES */
-
-  {
-    name: '୨୧・social',
-    color: 0xa2d2ff
-  },
-
-  {
-    name: '୨୧・introvert',
-    color: 0xbdb2ff
-  },
-
-  {
-    name: '୨୧・extrovert',
+    name: "୨୧・any pronouns",
     color: 0xffd6a5
   },
 
   {
-    name: '୨୧・active',
-    color: 0xffd166
+    name: "୨୧・minor",
+    color: 0xffe0b5
   },
 
-  /* NOTIFICATIONS */
-
+  // Interests
   {
-    name: '୨୧・announcements',
-    color: 0xffb6d9
+    name: "୨୧・artist",
+    color: 0xffbde0
+  },
+  {
+    name: "୨୧・music",
+    color: 0xd9c2ff
+  },
+  {
+    name: "୨୧・anime",
+    color: 0xffc7ce
+  },
+  {
+    name: "୨୧・creator",
+    color: 0xc7e9ff
+  },
+  {
+    name: "୨୧・developer",
+    color: 0xc8f7dc
   },
 
+  // Vibes
   {
-    name: '୨୧・events',
-    color: 0xa2d2ff
+    name: "୨୧・social",
+    color: 0xffc6e0
+  },
+  {
+    name: "୨୧・introvert",
+    color: 0xd9d2ff
+  },
+  {
+    name: "୨୧・extrovert",
+    color: 0xffd1b8
+  },
+  {
+    name: "୨୧・active",
+    color: 0xffefb5
   },
 
+  // Notification roles
   {
-    name: '୨୧・giveaways',
-    color: 0xcdb4db
-  },
-
-  {
-    name: '୨୧・vc',
-    color: 0xbde0fe
-  },
-
-  /* SERVER */
-
-  {
-    name: '🌸・booster',
-    color: 0xffb6d9
-  },
-
-  {
-    name: '💎・vip',
-    color: 0x74c0fc
-  },
-
-  {
-    name: '🎀・friend',
+    name: "୨୧・announcements",
     color: 0xffc8dd
   },
-
   {
-    name: '💜・partner',
-    color: 0xb197fc
+    name: "୨୧・events",
+    color: 0xffd0f0
+  },
+  {
+    name: "୨୧・giveaways",
+    color: 0xfff1c7
+  },
+  {
+    name: "୨୧・polls",
+    color: 0xcde7ff
+  },
+  {
+    name: "୨୧・vc",
+    color: 0xd5f5e3
   },
 
+  // Server roles
   {
-    name: '💫・supporter',
-    color: 0xffd166
+    name: "🌸・booster",
+    color: 0xff9fbe
+  },
+  {
+    name: "💎・vip",
+    color: 0x9dbbff
+  },
+  {
+    name: "🎀・friend",
+    color: 0xffa8c8
+  },
+  {
+    name: "💜・partner",
+    color: 0xc7a5ff
+  },
+  {
+    name: "💫・supporter",
+    color: 0xffd48a
+  },
+  {
+    name: "🫶・trusted",
+    color: 0xffc4d6
+  },
+  {
+    name: "⭐・active",
+    color: 0xffe18a
+  },
+  {
+    name: "🕰️・og",
+    color: 0xb9a8ff
   },
 
+  // Staff
   {
-    name: '🫶・trusted',
-    color: 0xffa8dad
+    name: "🔨・staff",
+    color: 0x8c9eff
   },
-
   {
-    name: '⭐・og',
-    color: 0xadb5bd
+    name: "🛡️・mod",
+    color: 0x7289da
   },
-
-  /* STAFF */
-
   {
-    name: '🔨・staff',
-    color: 0x9d4edd
+    name: "⚡・admin",
+    color: 0xffc857
   },
-
   {
-    name: '🛡️・mod',
-    color: 0xc77dff
-  },
-
-  {
-    name: '⚡・admin',
-    color: 0xff8fab
-  },
-
-  {
-    name: '👑・owner',
-    color: 0xff69b4
+    name: "👑・owner",
+    color: 0xff7eb6
   }
 ];
 
@@ -258,225 +207,167 @@ const ROLES = [
    CHANNEL STRUCTURE
 ========================= */
 
-const STRUCTURE = {
-  '001・INFO': [
-    ['୨୧・welcome', 'welcome'],
-    ['୨୧・goodbye', 'goodbye'],
-    ['୨୧・rules', 'rules'],
-    ['୨୧・announcements', 'announcements'],
-    ['୨୧・server-info', 'info'],
-    ['୨୧・introductions', 'introductions'],
-    ['୨୧・roles', 'roles'],
-    ['୨୧・boosts', 'boosts'],
-    ['୨୧・partnerships', 'partnerships']
-  ],
+const STRUCTURE = [
+  {
+    category: "001・INFO",
+    channels: [
+      "୨୧・rules",
+      "୨୧・announcements",
+      "୨୧・server-info",
+      "୨୧・welcome",
+      "୨୧・goodbye",
+      "୨୧・introductions",
+      "୨୧・roles",
+      "୨୧・boosts",
+      "୨୧・partnerships"
+    ]
+  },
 
-  '002・COMMUNITY': [
-    ['୨୧・chat', 'chat'],
-    ['୨୧・media', 'media'],
-    ['୨୧・memes', 'memes'],
-    ['୨୧・suggestions', 'suggestions']
-  ],
+  {
+    category: "002・COMMUNITY",
+    channels: [
+      "୨୧・chat",
+      "୨୧・make-friends",
+      "୨୧・media",
+      "୨୧・memes",
+      "୨୧・suggestions"
+    ]
+  },
 
-  '003・EXTRAS': [
-    ['୨୧・levels', 'levels'],
-    ['୨୧・starboard', 'starboard'],
-    ['୨୧・confessions', 'confessions'],
-    ['୨୧・support', 'support']
-  ],
+  {
+    category: "003・EXTRAS",
+    channels: [
+      "୨୧・levels",
+      "୨୧・starboard",
+      "୨୧・confessions",
+      "୨୧・support"
+    ]
+  },
 
-  '004・TICKETS': []
-};
+  {
+    category: "004・TICKETS",
+    channels: []
+  },
+
+  {
+    category: "005・STAFF",
+    channels: [
+      "୨୧・staff-chat"
+    ]
+  }
+];
 
 /* =========================
    HELPERS
 ========================= */
 
 function getRole(guild, name) {
-  return guild.roles.cache.find(
-    role => role.name === name
-  );
+  return guild.roles.cache.find(r => r.name === name);
 }
 
 function getChannel(guild, name) {
-  return guild.channels.cache.find(
-    channel => channel.name === name
-  );
+  return guild.channels.cache.find(c => c.name === name);
 }
 
 function getStaffRoles(guild) {
   return [
-    getRole(guild, '👑・owner'),
-    getRole(guild, '⚡・admin'),
-    getRole(guild, '🛡️・mod'),
-    getRole(guild, '🔨・staff')
+    getRole(guild, "🔨・staff"),
+    getRole(guild, "🛡️・mod"),
+    getRole(guild, "⚡・admin"),
+    getRole(guild, "👑・owner")
   ].filter(Boolean);
 }
 
 function isOwner(member) {
-  if (!member) return false;
-
-  if (member.id === member.guild.ownerId) {
-    return true;
-  }
-
-  const ownerRole = getRole(
-    member.guild,
-    '👑・owner'
+  return (
+    member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+    member.roles.cache.some(r => r.name === "👑・owner")
   );
-
-  return ownerRole
-    ? member.roles.cache.has(ownerRole.id)
-    : false;
 }
 
 function isStaff(member) {
-  if (!member) return false;
-
-  if (
-    member.permissions.has(
-      PermissionsBitField.Flags.Administrator
-    )
-  ) {
-    return true;
-  }
-
-  return getStaffRoles(member.guild).some(
-    role => member.roles.cache.has(role.id)
-  );
-}
-
-function canModerateTarget(actor, target) {
-  if (!target) return false;
-
-  if (target.id === actor.id) {
-    return false;
-  }
-
-  if (target.id === target.guild.ownerId) {
-    return false;
-  }
-
   return (
-    target.roles.highest.position <
-    actor.roles.highest.position
+    member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+    member.roles.cache.some(r =>
+      [
+        "🔨・staff",
+        "🛡️・mod",
+        "⚡・admin",
+        "👑・owner"
+      ].includes(r.name)
+    )
   );
 }
 
-/* =========================
-   SELF ROLE BUTTON
-========================= */
+function canModerate(member, target) {
+  if (!target) return false;
+  if (target.id === member.id) return false;
+  if (target.id === target.guild.ownerId) return false;
 
-function selfRoleButton(name, emoji) {
-  const encoded = Buffer
-    .from(name)
-    .toString('base64');
+  return member.roles.highest.position > target.roles.highest.position;
+}
 
+function roleButton(role, emoji) {
   return new ButtonBuilder()
-    .setCustomId(`selfrole_${encoded}`)
-    .setLabel(name.replace('୨୧・', ''))
+    .setCustomId(`selfrole_${role.id}`)
+    .setLabel(role.name.replace("୨୧・", ""))
     .setEmoji(emoji)
     .setStyle(ButtonStyle.Secondary);
 }
 
 /* =========================
-   RESET SERVER
+   RESET
 ========================= */
 
+let resetting = false;
+
 async function resetServer(guild) {
-  if (resetting) {
-    throw new Error(
-      'A server reset is already running.'
-    );
-  }
+  if (resetting) return;
 
   resetting = true;
 
   try {
-    console.log(
-      `🔄 Starting reset for ${guild.name}`
-    );
+    data.channels = {};
+    saveData();
 
-    const me = guild.members.me;
+    console.log("Starting server reset...");
 
-    if (!me) {
-      throw new Error(
-        'Bot member could not be found.'
-      );
-    }
+    /* Delete channels */
 
-    /* =========================
-       DELETE CHANNELS
-    ========================= */
-
-    console.log('🗑️ Deleting channels...');
-
-    const oldChannels = [
-      ...guild.channels.cache.values()
-    ];
-
-    for (const channel of oldChannels) {
+    for (const channel of [...guild.channels.cache.values()]) {
       try {
-        await channel.delete(
-          'Complete server reset'
-        );
-      } catch (err) {
-        console.log(
-          `⚠️ Could not delete ${channel.name}`
-        );
-      }
+        await channel.delete("Server reset");
+      } catch {}
     }
 
-    /* =========================
-       DELETE ROLES
-    ========================= */
+    /* Delete roles */
 
-    console.log('🗑️ Deleting roles...');
+    const botMember = guild.members.me;
+    const botPosition = botMember?.roles?.highest?.position ?? 0;
 
-    const botHighest =
-      me.roles.highest.position;
-
-    const oldRoles = [
-      ...guild.roles.cache.values()
-    ];
-
-    for (const role of oldRoles) {
-      if (role.id === guild.id) {
-        continue;
-      }
-
-      if (role.managed) {
-        continue;
-      }
-
-      if (role.position >= botHighest) {
+    for (const role of [...guild.roles.cache.values()]) {
+      if (
+        role.id === guild.id ||
+        role.managed ||
+        role.position >= botPosition
+      ) {
         continue;
       }
 
       try {
-        await role.delete(
-          'Complete server reset'
-        );
-      } catch (err) {
-        console.log(
-          `⚠️ Could not delete role ${role.name}`
-        );
-      }
+        await role.delete("Server reset");
+      } catch {}
     }
 
-    /* =========================
-       CREATE ROLES
-    ========================= */
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    console.log('🎀 Creating roles...');
+    /* Create/reuse roles */
 
     const createdRoles = {};
 
     for (const roleInfo of ROLES) {
       let role = guild.roles.cache.find(
-        r =>
-          r.name === roleInfo.name &&
-          !r.managed
+        r => r.name === roleInfo.name && !r.managed
       );
 
       if (!role) {
@@ -484,17 +375,10 @@ async function resetServer(guild) {
           role = await guild.roles.create({
             name: roleInfo.name,
             color: roleInfo.color,
-            reason: 'Complete server reset'
+            reason: "Server setup"
           });
-
-          console.log(
-            `✅ Created ${roleInfo.name}`
-          );
         } catch (err) {
-          console.log(
-            `❌ Could not create ${roleInfo.name}: ${err.message}`
-          );
-
+          console.log(`Could not create role ${roleInfo.name}:`, err.message);
           continue;
         }
       }
@@ -502,539 +386,472 @@ async function resetServer(guild) {
       createdRoles[roleInfo.name] = role;
     }
 
-    /* =========================
-       CREATE CATEGORIES
-    ========================= */
+    /* Create categories and channels */
 
-    console.log(
-      '📁 Creating categories/channels...'
-    );
+    const categories = {};
 
-    const createdChannels = {};
-
-    for (
-      const [categoryName, channelList]
-      of Object.entries(STRUCTURE)
-    ) {
-      let category =
-        guild.channels.cache.find(
-          channel =>
-            channel.type ===
-              ChannelType.GuildCategory &&
-            channel.name === categoryName
-        );
+    for (const section of STRUCTURE) {
+      let category = guild.channels.cache.find(
+        c =>
+          c.name === section.category &&
+          c.type === ChannelType.GuildCategory
+      );
 
       if (!category) {
-        category =
-          await guild.channels.create({
-            name: categoryName,
-            type: ChannelType.GuildCategory,
-            reason: 'Complete server reset'
-          });
+        category = await guild.channels.create({
+          name: section.category,
+          type: ChannelType.GuildCategory
+        });
       }
 
-      createdChannels[
-        categoryName
-      ] = category;
+      categories[section.category] = category;
 
-      for (
-        const [channelName, key]
-        of channelList
-      ) {
-        let channel =
-          guild.channels.cache.find(
-            c =>
-              c.type ===
-                ChannelType.GuildText &&
-              c.name === channelName &&
-              c.parentId === category.id
-          );
+      for (const channelName of section.channels) {
+        let channel = guild.channels.cache.find(
+          c =>
+            c.name === channelName &&
+            c.type === ChannelType.GuildText
+        );
 
         if (!channel) {
-          channel =
-            await guild.channels.create({
-              name: channelName,
-              type: ChannelType.GuildText,
-              parent: category.id,
-              reason: 'Complete server reset'
-            });
+          channel = await guild.channels.create({
+            name: channelName,
+            type: ChannelType.GuildText,
+            parent: category.id
+          });
+        } else if (channel.parentId !== category.id) {
+          try {
+            await channel.setParent(category.id);
+          } catch {}
         }
 
-        createdChannels[key] = channel;
+        data.channels[channelName] = channel.id;
       }
     }
-
-    /* =========================
-       READ ONLY CHANNELS
-    ========================= */
-
-    const readOnly = [
-      'welcome',
-      'goodbye',
-      'rules',
-      'announcements',
-      'info',
-      'roles',
-      'boosts',
-      'partnerships',
-      'levels',
-      'starboard',
-      'confessions',
-      'support'
-    ];
-
-    for (const key of readOnly) {
-      const channel =
-        createdChannels[key];
-
-      if (!channel) continue;
-
-      await channel.permissionOverwrites
-        .edit(
-          guild.roles.everyone,
-          {
-            SendMessages: false
-          }
-        )
-        .catch(() => {});
-    }
-
-    /* =========================
-       WELCOME
-    ========================= */
-
-    await createdChannels.welcome.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ welcome ♡'
-          )
-          .setDescription(
-            'welcome to the server!\n\n' +
-            'please read **#୨୧・rules** first, ' +
-            'then grab some roles in **#୨୧・roles**.\n\n' +
-            'introduce yourself and come hang out with everyone ♡'
-          )
-          .setFooter({
-            text: '୨୧ glad to have you here!'
-          })
-      ]
-    });
-
-    /* =========================
-       GOODBYE
-    ========================= */
-
-    await createdChannels.goodbye.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ goodbye ♡'
-          )
-          .setDescription(
-            'when someone leaves, their goodbye message will appear here.'
-          )
-      ]
-    });
-
-    /* =========================
-       RULES
-    ========================= */
-
-    await createdChannels.rules.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ server rules'
-          )
-          .setDescription(
-            '**01** be respectful ♡\n' +
-            '**02** no harassment or bullying\n' +
-            '**03** no spam or flooding\n' +
-            '**04** no NSFW content\n' +
-            '**05** no slurs or hateful behavior\n' +
-            '**06** no advertising without permission\n' +
-            '**07** listen to staff\n' +
-            '**08** use channels correctly\n\n' +
-            'breaking the rules may result in a warning, timeout, kick, or ban.'
-          )
-          .setFooter({
-            text: '୨୧ enjoy your stay!'
-          })
-      ]
-    });
-
-    /* =========================
-       SERVER INFO
-    ========================= */
-
-    await createdChannels.info.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ server info'
-          )
-          .setDescription(
-            `welcome to **${guild.name}** ♡\n\n` +
-            'read the rules before chatting.\n' +
-            'choose your roles.\n' +
-            'introduce yourself.\n' +
-            'meet everyone and have fun!\n\n' +
-            '**community**\n' +
-            'chat • media • memes • suggestions\n\n' +
-            '**extras**\n' +
-            'levels • starboard • confessions • support'
-          )
-      ]
-    });
-
-    /* =========================
-       ROLE PANEL
-    ========================= */
-
-    const roleRows = [
-
-      new ActionRowBuilder().addComponents(
-        selfRoleButton(
-          '୨୧・she/her',
-          '♡'
-        ),
-        selfRoleButton(
-          '୨୧・he/him',
-          '♡'
-        ),
-        selfRoleButton(
-          '୨୧・they/them',
-          '♡'
-        )
-      ),
-
-      new ActionRowBuilder().addComponents(
-        selfRoleButton(
-          '୨୧・minor',
-          '🌷'
-        )
-      ),
-
-      new ActionRowBuilder().addComponents(
-        selfRoleButton(
-          '୨୧・gamer',
-          '🎮'
-        ),
-        selfRoleButton(
-          '୨୧・artist',
-          '🎨'
-        ),
-        selfRoleButton(
-          '୨୧・music',
-          '🎵'
-        ),
-        selfRoleButton(
-          '୨୧・anime',
-          '🎀'
-        ),
-        selfRoleButton(
-          '୨୧・creator',
-          '✨'
-        )
-      ),
-
-      new ActionRowBuilder().addComponents(
-        selfRoleButton(
-          '୨୧・social',
-          '💬'
-        ),
-        selfRoleButton(
-          '୨୧・introvert',
-          '🌙'
-        ),
-        selfRoleButton(
-          '୨୧・extrovert',
-          '☀️'
-        ),
-        selfRoleButton(
-          '୨୧・active',
-          '⭐'
-        )
-      ),
-
-      new ActionRowBuilder().addComponents(
-        selfRoleButton(
-          '୨୧・announcements',
-          '📢'
-        ),
-        selfRoleButton(
-          '୨୧・events',
-          '🎉'
-        ),
-        selfRoleButton(
-          '୨୧・giveaways',
-          '🎁'
-        ),
-        selfRoleButton(
-          '୨୧・vc',
-          '🎙️'
-        )
-      )
-    ];
-
-    await createdChannels.roles.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ choose your roles'
-          )
-          .setDescription(
-            'pick whatever fits you ♡\n\n' +
-            '**♡ PRONOUNS**\n' +
-            'choose your pronouns.\n\n' +
-            '**🌷 AGE**\n' +
-            'choose your age group.\n\n' +
-            '**🎀 INTERESTS**\n' +
-            'show what you like.\n\n' +
-            '**🌸 VIBES**\n' +
-            'show your personality.\n\n' +
-            '**📢 NOTIFICATIONS**\n' +
-            'choose what you want pings for.\n\n' +
-            'click a button again to remove a role.'
-          )
-          .setFooter({
-            text: '୨୧ choose what represents you ♡'
-          })
-      ],
-      components: roleRows
-    });
-
-    /* =========================
-       INTRODUCTIONS
-    ========================= */
-
-    await createdChannels.introductions.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ introduce yourself'
-          )
-          .setDescription(
-            'new here? say hi to everyone ♡\n\n' +
-            '・ name / nickname\n' +
-            '・ pronouns\n' +
-            '・ hobbies\n' +
-            '・ favorite music\n' +
-            '・ favorite games\n' +
-            '・ favorite shows\n' +
-            '・ anything else!'
-          )
-      ]
-    });
-
-    /* =========================
-       ANNOUNCEMENTS
-    ========================= */
-
-    await createdChannels.announcements.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ announcements'
-          )
-          .setDescription(
-            'important server announcements will appear here ♡'
-          )
-      ]
-    });
-
-    /* =========================
-       BOOSTS
-    ========================= */
-
-    await createdChannels.boosts.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ server boosts'
-          )
-          .setDescription(
-            'thank you to everyone who boosts the server! ♡\n\n' +
-            'boosters receive special recognition and perks.'
-          )
-      ]
-    });
-
-    /* =========================
-       PARTNERSHIPS
-    ========================= */
-
-    await createdChannels.partnerships.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ partnerships'
-          )
-          .setDescription(
-            'want to partner with us? ♡\n\n' +
-            'click the button below to submit an application.'
-          )
-      ],
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(
-              'open_partnership'
-            )
-            .setLabel(
-              'apply for partnership'
-            )
-            .setEmoji('💜')
-            .setStyle(
-              ButtonStyle.Secondary
-            )
-        )
-      ]
-    });
-
-    /* =========================
-       SUGGESTIONS
-    ========================= */
-
-    await createdChannels.suggestions.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ suggestions'
-          )
-          .setDescription(
-            'have an idea for the server? ♡\n\n' +
-            'click below to submit it.'
-          )
-      ],
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(
-              'open_suggestion'
-            )
-            .setLabel(
-              'make a suggestion'
-            )
-            .setEmoji('💡')
-            .setStyle(
-              ButtonStyle.Secondary
-            )
-        )
-      ]
-    });
-
-    /* =========================
-       CONFESSIONS
-    ========================= */
-
-    await createdChannels.confessions.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ confessions'
-          )
-          .setDescription(
-            'say something anonymously ♡\n\n' +
-            'click below to send a confession.'
-          )
-      ],
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(
-              'open_confession'
-            )
-            .setLabel(
-              'send a confession'
-            )
-            .setEmoji('💌')
-            .setStyle(
-              ButtonStyle.Secondary
-            )
-        )
-      ]
-    });
-
-    /* =========================
-       SUPPORT
-    ========================= */
-
-    await createdChannels.support.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ support'
-          )
-          .setDescription(
-            'need help with something? ♡\n\n' +
-            'open a private ticket and staff will help you.'
-          )
-      ],
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(
-              'open_support'
-            )
-            .setLabel(
-              'open support ticket'
-            )
-            .setEmoji('🎫')
-            .setStyle(
-              ButtonStyle.Secondary
-            )
-        )
-      ]
-    });
-
-    /* =========================
-       SAVE CHANNELS
-    ========================= */
-
-    data.channels = {
-      welcome:
-        createdChannels.welcome?.id,
-
-      goodbye:
-        createdChannels.goodbye?.id,
-
-      levels:
-        createdChannels.levels?.id,
-
-      starboard:
-        createdChannels.starboard?.id,
-
-      ticketCategory:
-        createdChannels[
-          '004・TICKETS'
-        ]?.id
-    };
 
     saveData();
 
-    console.log(
-      '✅ SERVER RESET COMPLETE'
-    );
+    /* Lock informational channels */
 
-    return createdChannels;
+    const readOnly = [
+      "୨୧・rules",
+      "୨୧・announcements",
+      "୨୧・server-info",
+      "୨୧・welcome",
+      "୨୧・goodbye",
+      "୨୧・roles",
+      "୨୧・boosts",
+      "୨୧・partnerships",
+      "୨୧・levels",
+      "୨୧・starboard",
+      "୨୧・confessions",
+      "୨୧・support"
+    ];
 
+    for (const name of readOnly) {
+      const channel = getChannel(guild, name);
+      if (!channel) continue;
+
+      try {
+        await channel.permissionOverwrites.edit(guild.roles.everyone, {
+          SendMessages: false
+        });
+      } catch {}
+    }
+
+    /* Staff chat permissions */
+
+    const staffChat = getChannel(guild, "୨୧・staff-chat");
+
+    if (staffChat) {
+      try {
+        await staffChat.permissionOverwrites.edit(
+          guild.roles.everyone,
+          {
+            ViewChannel: false
+          }
+        );
+
+        for (const role of getStaffRoles(guild)) {
+          await staffChat.permissionOverwrites.edit(role, {
+            ViewChannel: true,
+            SendMessages: true
+          });
+        }
+      } catch {}
+    }
+
+    /* Panels */
+
+    await setupRules(guild);
+    await setupServerInfo(guild);
+    await setupRoles(guild);
+    await setupIntroductions(guild);
+    await setupAnnouncements(guild);
+    await setupWelcome(guild);
+    await setupGoodbye(guild);
+    await setupBoosts(guild);
+    await setupPartnerships(guild);
+    await setupMakeFriends(guild);
+    await setupSuggestions(guild);
+    await setupConfessions(guild);
+    await setupSupport(guild);
+    await setupStaffChat(guild);
+
+    console.log("Server reset complete.");
   } finally {
     resetting = false;
   }
+}
+
+/* =========================
+   PANELS
+========================= */
+
+async function clearAndSend(channel, message) {
+  if (!channel) return;
+
+  try {
+    const messages = await channel.messages.fetch({ limit: 50 });
+
+    if (messages.size) {
+      await channel.bulkDelete(messages, true);
+    }
+  } catch {}
+
+  await channel.send(message);
+}
+
+async function setupRules(guild) {
+  const channel = getChannel(guild, "୨୧・rules");
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("♡ server rules")
+    .setDescription(
+      [
+        "welcome to the server ♡",
+        "",
+        "୨୧ be respectful",
+        "୨୧ no harassment or bullying",
+        "୨୧ no spam or flooding",
+        "୨୧ no unwanted advertising",
+        "୨୧ keep things appropriate",
+        "୨୧ respect staff decisions",
+        "୨୧ don't share private information",
+        "୨୧ use channels for their intended purpose",
+        "",
+        "have fun and be nice to everyone ♡"
+      ].join("\n")
+    )
+    .setFooter({ text: "♡ thank you for keeping the server comfy" });
+
+  await clearAndSend(channel, { embeds: [embed] });
+}
+
+async function setupServerInfo(guild) {
+  const channel = getChannel(guild, "୨୧・server-info");
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("୨୧ server info")
+    .setDescription(
+      [
+        "♡ welcome to our little community!",
+        "",
+        "use `/profile` to view your profile.",
+        "use `/setbio` to set your bio.",
+        "",
+        "need help?",
+        "use the support panel or contact staff.",
+        "",
+        "make friends, chat, share media and have fun ♡"
+      ].join("\n")
+    );
+
+  await clearAndSend(channel, { embeds: [embed] });
+}
+
+async function setupRoles(guild) {
+  const channel = getChannel(guild, "୨୧・roles");
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("୨୧ choose your roles")
+    .setDescription(
+      [
+        "click a button to get or remove a role.",
+        "",
+        "♡ **PRONOUNS**",
+        "choose whichever fits you.",
+        "",
+        "✿ **AGE**",
+        "minor role only — no adult/18+ roles.",
+        "",
+        "୨୧ **INTERESTS**",
+        "show people what you're into.",
+        "",
+        "☁ **VIBES**",
+        "pick the vibe that fits you.",
+        "",
+        "☆ **NOTIFICATIONS**",
+        "choose which notifications you want."
+      ].join("\n")
+    );
+
+  const pronouns = [
+    ["୨୧・she/her", "🌸"],
+    ["୨୧・he/him", "💙"],
+    ["୨୧・they/them", "💜"],
+    ["୨୧・any pronouns", "🎀"]
+  ];
+
+  const interests = [
+    ["୨୧・artist", "🎨"],
+    ["୨୧・music", "🎵"],
+    ["୨୧・anime", "🌸"],
+    ["୨୧・creator", "✨"],
+    ["୨୧・developer", "💻"]
+  ];
+
+  const vibes = [
+    ["୨୧・social", "💬"],
+    ["୨୧・introvert", "☁️"],
+    ["୨୧・extrovert", "💗"],
+    ["୨୧・active", "⭐"]
+  ];
+
+  const notifications = [
+    ["୨୧・announcements", "📢"],
+    ["୨୧・events", "🎉"],
+    ["୨୧・giveaways", "🎁"],
+    ["୨୧・polls", "📊"],
+    ["୨୧・vc", "🎙️"]
+  ];
+
+  const makeRow = list => {
+    return new ActionRowBuilder().addComponents(
+      list
+        .map(([name, emoji]) => {
+          const role = getRole(guild, name);
+          return role ? roleButton(role, emoji) : null;
+        })
+        .filter(Boolean)
+    );
+  };
+
+  const minor = getRole(guild, "୨୧・minor");
+
+  await clearAndSend(channel, {
+    embeds: [embed],
+    components: [
+      makeRow(pronouns),
+      new ActionRowBuilder().addComponents(
+        minor
+          ? roleButton(minor, "🧸")
+          : new ButtonBuilder()
+              .setCustomId("unused")
+              .setLabel("minor")
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(true)
+      ),
+      makeRow(interests),
+      makeRow(vibes),
+      makeRow(notifications)
+    ]
+  });
+}
+
+async function setupIntroductions(guild) {
+  const channel = getChannel(guild, "୨୧・introductions");
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("♡ introduce yourself")
+    .setDescription(
+      "tell everyone a little about yourself!\n\n" +
+      "♡ name / nickname\n" +
+      "♡ interests\n" +
+      "♡ favorite music\n" +
+      "♡ games or hobbies\n" +
+      "♡ anything else you want people to know"
+    );
+
+  await clearAndSend(channel, { embeds: [embed] });
+}
+
+async function setupAnnouncements(guild) {
+  const channel = getChannel(guild, "୨୧・announcements");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("୨୧ announcements")
+        .setDescription("official server announcements will appear here ♡")
+    ]
+  });
+}
+
+async function setupWelcome(guild) {
+  const channel = getChannel(guild, "୨୧・welcome");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🌸 welcome")
+        .setDescription("new members will be welcomed here automatically ♡")
+    ]
+  });
+}
+
+async function setupGoodbye(guild) {
+  const channel = getChannel(guild, "୨୧・goodbye");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("☁ goodbye")
+        .setDescription("member departures will appear here.")
+    ]
+  });
+}
+
+async function setupBoosts(guild) {
+  const channel = getChannel(guild, "୨୧・boosts");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🌸 server boosters")
+        .setDescription("thank you to everyone who supports the server ♡")
+    ]
+  });
+}
+
+async function setupPartnerships(guild) {
+  const channel = getChannel(guild, "୨୧・partnerships");
+  if (!channel) return;
+
+  const button = new ButtonBuilder()
+    .setCustomId("partnership")
+    .setLabel("apply for partnership")
+    .setEmoji("💜")
+    .setStyle(ButtonStyle.Secondary);
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("💜 partnerships")
+        .setDescription(
+          "want to partner with the server?\n\n" +
+          "click the button below to submit an application."
+        )
+    ],
+    components: [
+      new ActionRowBuilder().addComponents(button)
+    ]
+  });
+}
+
+async function setupMakeFriends(guild) {
+  const channel = getChannel(guild, "୨୧・make-friends");
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("୨୧ make friends")
+    .setDescription(
+      [
+        "looking for new people to talk to? ♡",
+        "",
+        "tell everyone:",
+        "♡ what you're into",
+        "♡ your favorite music",
+        "♡ your hobbies",
+        "♡ what kind of people you'd like to meet",
+        "",
+        "please don't spam or pressure anyone to respond.",
+        "respect boundaries and keep things friendly ♡"
+      ].join("\n")
+    );
+
+  await clearAndSend(channel, { embeds: [embed] });
+}
+
+async function setupSuggestions(guild) {
+  const channel = getChannel(guild, "୨୧・suggestions");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("୨୧ suggestions")
+        .setDescription(
+          "have an idea for the server?\n\n" +
+          "use `/suggest` and your suggestion will appear here.\n\n" +
+          "react with 👍 or 👎 to vote."
+        )
+    ]
+  });
+}
+
+async function setupConfessions(guild) {
+  const channel = getChannel(guild, "୨୧・confessions");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("♡ anonymous confessions")
+        .setDescription(
+          "use `/confess` to anonymously send a confession."
+        )
+    ]
+  });
+}
+
+async function setupSupport(guild) {
+  const channel = getChannel(guild, "୨୧・support");
+  if (!channel) return;
+
+  const button = new ButtonBuilder()
+    .setCustomId("support_ticket")
+    .setLabel("open support ticket")
+    .setEmoji("🫶")
+    .setStyle(ButtonStyle.Secondary);
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🫶 support")
+        .setDescription(
+          "need help with something?\n\n" +
+          "open a private ticket and staff will help you."
+        )
+    ],
+    components: [
+      new ActionRowBuilder().addComponents(button)
+    ]
+  });
+}
+
+async function setupStaffChat(guild) {
+  const channel = getChannel(guild, "୨୧・staff-chat");
+  if (!channel) return;
+
+  await clearAndSend(channel, {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🛡️ staff chat")
+        .setDescription(
+          "private staff discussion channel.\n\n" +
+          "staff, moderators, admins and the owner can see this channel."
+        )
+    ]
+  });
 }
 
 /* =========================
@@ -1044,291 +861,254 @@ async function resetServer(guild) {
 const commands = [
 
   new SlashCommandBuilder()
-    .setName('resetserver')
-    .setDescription(
-      'Completely rebuild the server'
+    .setName("resetserver")
+    .setDescription("Completely rebuild the server")
+    .setDefaultMemberPermissions(
+      PermissionsBitField.Flags.Administrator
     ),
 
   new SlashCommandBuilder()
-    .setName('coinflip')
-    .setDescription(
-      'Flip a coin'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('roll')
-    .setDescription(
-      'Roll a dice'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('8ball')
-    .setDescription(
-      'Ask the magic 8ball'
+    .setName("send")
+    .setDescription("Send a message to a channel — one time only")
+    .addChannelOption(option =>
+      option
+        .setName("channel")
+        .setDescription("Channel to send the message in")
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(true)
     )
     .addStringOption(option =>
       option
-        .setName('question')
-        .setDescription(
-          'Your question'
-        )
+        .setName("message")
+        .setDescription("Message to send")
+        .setRequired(true)
+        .setMaxLength(2000)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("coinflip")
+    .setDescription("Flip a coin"),
+
+  new SlashCommandBuilder()
+    .setName("roll")
+    .setDescription("Roll a dice"),
+
+  new SlashCommandBuilder()
+    .setName("8ball")
+    .setDescription("Ask the magic 8ball")
+    .addStringOption(option =>
+      option
+        .setName("question")
+        .setDescription("Your question")
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName('rps')
-    .setDescription(
-      'Play rock paper scissors'
-    )
+    .setName("rps")
+    .setDescription("Play rock paper scissors")
     .addStringOption(option =>
       option
-        .setName('choice')
-        .setDescription(
-          'Your choice'
-        )
+        .setName("choice")
+        .setDescription("Your choice")
         .setRequired(true)
         .addChoices(
-          {
-            name: 'rock',
-            value: 'rock'
-          },
-          {
-            name: 'paper',
-            value: 'paper'
-          },
-          {
-            name: 'scissors',
-            value: 'scissors'
-          }
+          { name: "rock", value: "rock" },
+          { name: "paper", value: "paper" },
+          { name: "scissors", value: "scissors" }
         )
     ),
 
   new SlashCommandBuilder()
-    .setName('wouldyourather')
-    .setDescription(
-      'Get a would you rather question'
+    .setName("wouldyourather")
+    .setDescription("Get a would-you-rather question"),
+
+  new SlashCommandBuilder()
+    .setName("trivia")
+    .setDescription("Get a trivia question"),
+
+  new SlashCommandBuilder()
+    .setName("rank")
+    .setDescription("Check your level"),
+
+  new SlashCommandBuilder()
+    .setName("leaderboard")
+    .setDescription("View the XP leaderboard"),
+
+  new SlashCommandBuilder()
+    .setName("profile")
+    .setDescription("View your profile")
+    .addUserOption(option =>
+      option
+        .setName("user")
+        .setDescription("User to view")
+        .setRequired(false)
     ),
 
   new SlashCommandBuilder()
-    .setName('trivia')
-    .setDescription(
-      'Get random trivia'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('rank')
-    .setDescription(
-      'See your level'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('leaderboard')
-    .setDescription(
-      'See the XP leaderboard'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('profile')
-    .setDescription(
-      'See your profile'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('setbio')
-    .setDescription(
-      'Set your profile bio'
-    )
+    .setName("setbio")
+    .setDescription("Set your profile bio")
     .addStringOption(option =>
       option
-        .setName('bio')
-        .setDescription(
-          'Your bio'
-        )
+        .setName("bio")
+        .setDescription("Your bio")
+        .setRequired(true)
+        .setMaxLength(200)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("friend")
+    .setDescription("Add someone as a friend")
+    .addUserOption(option =>
+      option
+        .setName("user")
+        .setDescription("Friend")
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName('friend')
-    .setDescription(
-      'Add someone as a friend'
-    )
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription(
-          'User'
-        )
-        .setRequired(true)
-    ),
+    .setName("friends")
+    .setDescription("View your friends"),
 
   new SlashCommandBuilder()
-    .setName('friends')
-    .setDescription(
-      'See your friends'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('ban')
-    .setDescription(
-      'Ban a member'
-    )
+    .setName("ban")
+    .setDescription("Ban a member")
     .addUserOption(option =>
       option
-        .setName('user')
-        .setDescription(
-          'Member'
-        )
+        .setName("user")
+        .setDescription("Member")
         .setRequired(true)
     )
     .addStringOption(option =>
       option
-        .setName('reason')
-        .setDescription(
-          'Reason'
-        )
+        .setName("reason")
+        .setDescription("Reason")
+        .setRequired(false)
     ),
 
   new SlashCommandBuilder()
-    .setName('kick')
-    .setDescription(
-      'Kick a member'
-    )
+    .setName("kick")
+    .setDescription("Kick a member")
     .addUserOption(option =>
       option
-        .setName('user')
-        .setDescription(
-          'Member'
-        )
+        .setName("user")
+        .setDescription("Member")
         .setRequired(true)
     )
     .addStringOption(option =>
       option
-        .setName('reason')
-        .setDescription(
-          'Reason'
-        )
+        .setName("reason")
+        .setDescription("Reason")
+        .setRequired(false)
     ),
 
   new SlashCommandBuilder()
-    .setName('timeout')
-    .setDescription(
-      'Timeout a member'
-    )
+    .setName("timeout")
+    .setDescription("Timeout a member")
     .addUserOption(option =>
       option
-        .setName('user')
-        .setDescription(
-          'Member'
-        )
+        .setName("user")
+        .setDescription("Member")
         .setRequired(true)
     )
     .addIntegerOption(option =>
       option
-        .setName('minutes')
-        .setDescription(
-          '1-40320 minutes'
-        )
+        .setName("minutes")
+        .setDescription("Minutes")
+        .setRequired(true)
         .setMinValue(1)
         .setMaxValue(40320)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("warn")
+    .setDescription("Warn a member")
+    .addUserOption(option =>
+      option
+        .setName("user")
+        .setDescription("Member")
         .setRequired(true)
     )
     .addStringOption(option =>
       option
-        .setName('reason')
-        .setDescription(
-          'Reason'
-        )
+        .setName("reason")
+        .setDescription("Reason")
+        .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName('warn')
-    .setDescription(
-      'Warn a member'
-    )
+    .setName("warnings")
+    .setDescription("View member warnings")
     .addUserOption(option =>
       option
-        .setName('user')
-        .setDescription(
-          'Member'
-        )
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName('reason')
-        .setDescription(
-          'Reason'
-        )
+        .setName("user")
+        .setDescription("Member")
         .setRequired(true)
     ),
 
   new SlashCommandBuilder()
-    .setName('warnings')
-    .setDescription(
-      'See member warnings'
-    )
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription(
-          'Member'
-        )
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName('clear')
-    .setDescription(
-      'Delete messages'
-    )
+    .setName("clear")
+    .setDescription("Delete messages")
     .addIntegerOption(option =>
       option
-        .setName('amount')
-        .setDescription(
-          '1-100'
-        )
+        .setName("amount")
+        .setDescription("Number of messages")
+        .setRequired(true)
         .setMinValue(1)
         .setMaxValue(100)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("confess")
+    .setDescription("Send an anonymous confession"),
+
+  new SlashCommandBuilder()
+    .setName("suggest")
+    .setDescription("Make a server suggestion")
+    .addStringOption(option =>
+      option
+        .setName("suggestion")
+        .setDescription("Your suggestion")
         .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName('confess')
-    .setDescription(
-      'Send an anonymous confession'
-    ),
-
-  new SlashCommandBuilder()
-    .setName('suggest')
-    .setDescription(
-      'Make a suggestion'
+        .setMaxLength(1000)
     )
+
 ];
 
 /* =========================
    READY
 ========================= */
 
-client.once('ready', async () => {
-  console.log(
-    `✅ Logged in as ${client.user.tag}`
-  );
+client.once("ready", async () => {
+  console.log(`Logged in as ${client.user.tag}`);
 
   try {
-    await client.application.commands.set(
-      commands.map(
-        command => command.toJSON()
-      )
+    const existingCommands =
+      await client.application.commands.fetch();
+
+    const sendCommand = existingCommands.find(
+      c => c.name === "send"
     );
 
-    console.log(
-      '✅ Slash commands registered.'
+    /*
+      If /send has already been used, don't register it again.
+    */
+
+    const commandsToRegister = commands.filter(command => {
+      if (command.name === "send" && data.sendUsed) {
+        return false;
+      }
+
+      return true;
+    });
+
+    await client.application.commands.set(
+      commandsToRegister.map(c => c.toJSON())
     );
+
+    console.log("Slash commands registered.");
+
   } catch (err) {
-    console.error(
-      '❌ Command registration error:',
-      err
-    );
+    console.error("Command registration error:", err);
   }
 });
 
@@ -1336,1943 +1116,1053 @@ client.once('ready', async () => {
    INTERACTIONS
 ========================= */
 
-client.on(
-  'interactionCreate',
-  async interaction => {
+client.on("interactionCreate", async interaction => {
 
-    try {
+  if (interaction.isButton()) {
 
-      /* =====================
-         SELF ROLES
-      ===================== */
+    /* Self roles */
 
-      if (
-        interaction.isButton() &&
-        interaction.customId.startsWith(
-          'selfrole_'
-        )
-      ) {
-
-        const encoded =
-          interaction.customId.replace(
-            'selfrole_',
-            ''
-          );
-
-        const roleName =
-          Buffer.from(
-            encoded,
-            'base64'
-          ).toString('utf8');
-
-        const role =
-          getRole(
-            interaction.guild,
-            roleName
-          );
-
-        if (!role) {
-          return interaction.reply({
-            content:
-              '❌ That role does not exist.',
-            ephemeral: true
-          });
-        }
-
-        if (
-          interaction.member.roles.cache.has(
-            role.id
-          )
-        ) {
-
-          await interaction.member.roles.remove(
-            role
-          );
-
-          return interaction.reply({
-            content:
-              `♡ Removed **${role.name}**`,
-            ephemeral: true
-          });
-        }
-
-        await interaction.member.roles.add(
-          role
-        );
-
-        return interaction.reply({
-          content:
-            `♡ Added **${role.name}**`,
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         SUPPORT TICKET
-      ===================== */
-
-      if (
-        interaction.isButton() &&
-        interaction.customId ===
-          'open_support'
-      ) {
-
-        const category =
-          interaction.guild.channels.cache.get(
-            data.channels?.ticketCategory
-          );
-
-        if (!category) {
-          return interaction.reply({
-            content:
-              '❌ Ticket category is missing.',
-            ephemeral: true
-          });
-        }
-
-        const existing =
-          interaction.guild.channels.cache.find(
-            channel =>
-              channel.name ===
-              `ticket-${interaction.user.id}`
-          );
-
-        if (existing) {
-          return interaction.reply({
-            content:
-              `🎫 You already have a ticket: ${existing}`,
-            ephemeral: true
-          });
-        }
-
-        const overwrites = [
-
-          {
-            id:
-              interaction.guild.roles
-                .everyone.id,
-
-            deny: [
-              PermissionsBitField.Flags
-                .ViewChannel
-            ]
-          },
-
-          {
-            id:
-              interaction.user.id,
-
-            allow: [
-              PermissionsBitField.Flags
-                .ViewChannel,
-
-              PermissionsBitField.Flags
-                .SendMessages,
-
-              PermissionsBitField.Flags
-                .ReadMessageHistory
-            ]
-          }
-
-        ];
-
-        for (
-          const role
-          of getStaffRoles(
-            interaction.guild
-          )
-        ) {
-
-          overwrites.push({
-            id: role.id,
-
-            allow: [
-              PermissionsBitField.Flags
-                .ViewChannel,
-
-              PermissionsBitField.Flags
-                .SendMessages,
-
-              PermissionsBitField.Flags
-                .ReadMessageHistory
-            ]
-          });
-        }
-
-        const ticket =
-          await interaction.guild.channels.create({
-            name:
-              `ticket-${interaction.user.id}`,
-
-            type:
-              ChannelType.GuildText,
-
-            parent:
-              category.id,
-
-            permissionOverwrites:
-              overwrites
-          });
-
-        const closeRow =
-          new ActionRowBuilder()
-            .addComponents(
-              new ButtonBuilder()
-                .setCustomId(
-                  'close_ticket'
-                )
-                .setLabel(
-                  'close ticket'
-                )
-                .setEmoji('🔒')
-                .setStyle(
-                  ButtonStyle.Danger
-                )
-            );
-
-        await ticket.send({
-          content:
-            `${interaction.user}`,
-
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xffb6d9)
-              .setTitle(
-                '୨୧・ support ticket'
-              )
-              .setDescription(
-                'tell staff what you need help with ♡\n\n' +
-                'please be patient while someone responds.'
-              )
-          ],
-
-          components: [
-            closeRow
-          ]
-        });
-
-        return interaction.reply({
-          content:
-            `🎫 Your ticket has been created: ${ticket}`,
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         CLOSE TICKET
-      ===================== */
-
-      if (
-        interaction.isButton() &&
-        interaction.customId ===
-          'close_ticket'
-      ) {
-
-        if (
-          !isStaff(
-            interaction.member
-          )
-        ) {
-          return interaction.reply({
-            content:
-              '❌ Only staff can close tickets.',
-            ephemeral: true
-          });
-        }
-
-        await interaction.reply(
-          '🔒 Closing ticket...'
-        );
-
-        setTimeout(() => {
-          interaction.channel
-            .delete()
-            .catch(() => {});
-        }, 1500);
-
-        return;
-      }
-
-      /* =====================
-         PARTNERSHIP BUTTON
-      ===================== */
-
-      if (
-        interaction.isButton() &&
-        interaction.customId ===
-          'open_partnership'
-      ) {
-
-        const modal =
-          new ModalBuilder()
-            .setCustomId(
-              'partnership_modal'
-            )
-            .setTitle(
-              'Partnership Application'
-            );
-
-        const server =
-          new TextInputBuilder()
-            .setCustomId('server')
-            .setLabel(
-              'Server name'
-            )
-            .setStyle(
-              TextInputStyle.Short
-            )
-            .setRequired(true);
-
-        const members =
-          new TextInputBuilder()
-            .setCustomId('members')
-            .setLabel(
-              'Member count'
-            )
-            .setStyle(
-              TextInputStyle.Short
-            )
-            .setRequired(true);
-
-        const invite =
-          new TextInputBuilder()
-            .setCustomId('invite')
-            .setLabel(
-              'Invite link'
-            )
-            .setStyle(
-              TextInputStyle.Short
-            )
-            .setRequired(true);
-
-        modal.addComponents(
-          new ActionRowBuilder()
-            .addComponents(server),
-
-          new ActionRowBuilder()
-            .addComponents(members),
-
-          new ActionRowBuilder()
-            .addComponents(invite)
-        );
-
-        return interaction.showModal(
-          modal
-        );
-      }
-
-      /* =====================
-         PARTNERSHIP MODAL
-      ===================== */
-
-      if (
-        interaction.isModalSubmit() &&
-        interaction.customId ===
-          'partnership_modal'
-      ) {
-
-        const category =
-          interaction.guild.channels.cache.get(
-            data.channels?.ticketCategory
-          );
-
-        if (!category) {
-          return interaction.reply({
-            content:
-              '❌ Ticket category is missing.',
-            ephemeral: true
-          });
-        }
-
-        const existing =
-          interaction.guild.channels.cache.find(
-            channel =>
-              channel.name ===
-              `partner-${interaction.user.id}`
-          );
-
-        if (existing) {
-          return interaction.reply({
-            content:
-              `💜 You already have an application: ${existing}`,
-            ephemeral: true
-          });
-        }
-
-        const channel =
-          await interaction.guild.channels.create({
-            name:
-              `partner-${interaction.user.id}`,
-
-            type:
-              ChannelType.GuildText,
-
-            parent:
-              category.id,
-
-            permissionOverwrites: [
-
-              {
-                id:
-                  interaction.guild.roles
-                    .everyone.id,
-
-                deny: [
-                  PermissionsBitField.Flags
-                    .ViewChannel
-                ]
-              },
-
-              {
-                id:
-                  interaction.user.id,
-
-                allow: [
-                  PermissionsBitField.Flags
-                    .ViewChannel,
-
-                  PermissionsBitField.Flags
-                    .SendMessages,
-
-                  PermissionsBitField.Flags
-                    .ReadMessageHistory
-                ]
-              },
-
-              ...getStaffRoles(
-                interaction.guild
-              ).map(role => ({
-                id: role.id,
-
-                allow: [
-                  PermissionsBitField.Flags
-                    .ViewChannel,
-
-                  PermissionsBitField.Flags
-                    .SendMessages,
-
-                  PermissionsBitField.Flags
-                    .ReadMessageHistory
-                ]
-              }))
-
-            ]
-          });
-
-        await channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xffb6d9)
-              .setTitle(
-                '୨୧・ partnership application'
-              )
-              .setDescription(
-                `**Server:** ${
-                  interaction.fields
-                    .getTextInputValue(
-                      'server'
-                    )
-                }\n` +
-
-                `**Members:** ${
-                  interaction.fields
-                    .getTextInputValue(
-                      'members'
-                    )
-                }\n` +
-
-                `**Invite:** ${
-                  interaction.fields
-                    .getTextInputValue(
-                      'invite'
-                    )
-                }\n\n` +
-
-                `**Applicant:** ${interaction.user}`
-              )
-          ]
-        });
-
-        return interaction.reply({
-          content:
-            `💜 Application created: ${channel}`,
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         CONFESSION BUTTON
-      ===================== */
-
-      if (
-        interaction.isButton() &&
-        interaction.customId ===
-          'open_confession'
-      ) {
-
-        const modal =
-          new ModalBuilder()
-            .setCustomId(
-              'confession_modal'
-            )
-            .setTitle(
-              'Anonymous Confession'
-            );
-
-        const input =
-          new TextInputBuilder()
-            .setCustomId(
-              'confession'
-            )
-            .setLabel(
-              'Your confession'
-            )
-            .setStyle(
-              TextInputStyle.Paragraph
-            )
-            .setMaxLength(1000)
-            .setRequired(true);
-
-        modal.addComponents(
-          new ActionRowBuilder()
-            .addComponents(input)
-        );
-
-        return interaction.showModal(
-          modal
-        );
-      }
-
-      /* =====================
-         SUGGESTION BUTTON
-      ===================== */
-
-      if (
-        interaction.isButton() &&
-        interaction.customId ===
-          'open_suggestion'
-      ) {
-
-        const modal =
-          new ModalBuilder()
-            .setCustomId(
-              'suggestion_modal'
-            )
-            .setTitle(
-              'Server Suggestion'
-            );
-
-        const input =
-          new TextInputBuilder()
-            .setCustomId(
-              'suggestion'
-            )
-            .setLabel(
-              'Your suggestion'
-            )
-            .setStyle(
-              TextInputStyle.Paragraph
-            )
-            .setMaxLength(1000)
-            .setRequired(true);
-
-        modal.addComponents(
-          new ActionRowBuilder()
-            .addComponents(input)
-        );
-
-        return interaction.showModal(
-          modal
-        );
-      }
-
-      /* =====================
-         CONFESSION MODAL
-      ===================== */
-
-      if (
-        interaction.isModalSubmit() &&
-        interaction.customId ===
-          'confession_modal'
-      ) {
-
-        const channel =
-          getChannel(
-            interaction.guild,
-            '୨୧・confessions'
-          );
-
-        if (channel) {
-
-          await channel.send({
-            embeds: [
-              new EmbedBuilder()
-                .setColor(0xffb6d9)
-                .setTitle(
-                  '💌・ anonymous confession'
-                )
-                .setDescription(
-                  interaction.fields
-                    .getTextInputValue(
-                      'confession'
-                    )
-                )
-            ]
-          });
-        }
-
-        return interaction.reply({
-          content:
-            '💌 Your confession was sent anonymously.',
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         SUGGESTION MODAL
-      ===================== */
-
-      if (
-        interaction.isModalSubmit() &&
-        interaction.customId ===
-          'suggestion_modal'
-      ) {
-
-        const channel =
-          getChannel(
-            interaction.guild,
-            '୨୧・suggestions'
-          );
-
-        if (channel) {
-
-          const message =
-            await channel.send({
-              embeds: [
-                new EmbedBuilder()
-                  .setColor(0xffb6d9)
-                  .setTitle(
-                    '💡・ suggestion'
-                  )
-                  .setDescription(
-                    interaction.fields
-                      .getTextInputValue(
-                        'suggestion'
-                      )
-                  )
-                  .setFooter({
-                    text:
-                      `suggested by ${interaction.user.tag}`
-                  })
-              ]
-            });
-
-          await message.react('👍');
-          await message.react('👎');
-        }
-
-        return interaction.reply({
-          content:
-            '💡 Suggestion submitted!',
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         SLASH COMMANDS
-      ===================== */
-
-      if (
-        !interaction.isChatInputCommand()
-      ) {
-        return;
-      }
-
-      const command =
-        interaction.commandName;
-
-      /* =====================
-         RESET
-      ===================== */
-
-      if (
-        command ===
-        'resetserver'
-      ) {
-
-        if (
-          !isOwner(
-            interaction.member
-          )
-        ) {
-          return interaction.reply({
-            content:
-              '❌ Only the server owner can use this.',
-            ephemeral: true
-          });
-        }
-
-        if (resetting) {
-          return interaction.reply({
-            content:
-              '⏳ A reset is already running.',
-            ephemeral: true
-          });
-        }
-
-        await interaction.deferReply({
-          ephemeral: true
-        });
-
-        try {
-
-          await resetServer(
-            interaction.guild
-          );
-
-          await interaction.editReply(
-            '✅ **Server completely rebuilt!**\n\n' +
-            '♡ Channels recreated\n' +
-            '♡ Roles recreated\n' +
-            '♡ Welcome/goodbye system enabled\n' +
-            '♡ Role menu created\n' +
-            '♡ Panels recreated\n' +
-            '♡ Permissions configured'
-          );
-
-        } catch (err) {
-
-          console.error(
-            'RESET ERROR:',
-            err
-          );
-
-          await interaction.editReply(
-            '❌ Reset failed. Check Railway logs.'
-          );
-        }
-
-        return;
-      }
-
-      /* =====================
-         COINFLIP
-      ===================== */
-
-      if (
-        command ===
-        'coinflip'
-      ) {
-
-        return interaction.reply(
-          Math.random() < 0.5
-            ? '🪙 **Heads!**'
-            : '🪙 **Tails!**'
-        );
-      }
-
-      /* =====================
-         ROLL
-      ===================== */
-
-      if (
-        command ===
-        'roll'
-      ) {
-
-        return interaction.reply(
-          `🎲 You rolled **${
-            Math.floor(
-              Math.random() * 6
-            ) + 1
-          }**!`
-        );
-      }
-
-      /* =====================
-         8BALL
-      ===================== */
-
-      if (
-        command ===
-        '8ball'
-      ) {
-
-        const answers = [
-          'yes ♡',
-          'no 😭',
-          'probably',
-          'probably not',
-          'absolutely',
-          'ask again later',
-          'i have no idea 💀'
-        ];
-
-        return interaction.reply(
-          `🎱 ${
-            answers[
-              Math.floor(
-                Math.random() *
-                answers.length
-              )
-            ]
-          }`
-        );
-      }
-
-      /* =====================
-         RPS
-      ===================== */
-
-      if (
-        command ===
-        'rps'
-      ) {
-
-        const userChoice =
-          interaction.options
-            .getString(
-              'choice'
-            );
-
-        const choices = [
-          'rock',
-          'paper',
-          'scissors'
-        ];
-
-        const botChoice =
-          choices[
-            Math.floor(
-              Math.random() *
-              choices.length
-            )
-          ];
-
-        let result;
-
-        if (
-          userChoice ===
-          botChoice
-        ) {
-
-          result =
-            'tie 😭';
-
-        } else if (
-          (
-            userChoice ===
-              'rock' &&
-            botChoice ===
-              'scissors'
-          ) ||
-          (
-            userChoice ===
-              'paper' &&
-            botChoice ===
-              'rock'
-          ) ||
-          (
-            userChoice ===
-              'scissors' &&
-            botChoice ===
-              'paper'
-          )
-        ) {
-
-          result =
-            'you win! ♡';
-
-        } else {
-
-          result =
-            'i win 😼';
-        }
-
-        return interaction.reply(
-          `🪨📄✂️ You chose **${userChoice}**.\n` +
-          `I chose **${botChoice}**.\n\n` +
-          `**${result}**`
-        );
-      }
-
-      /* =====================
-         WOULD YOU RATHER
-      ===================== */
-
-      if (
-        command ===
-        'wouldyourather'
-      ) {
-
-        const questions = [
-          'Would you rather be able to fly or become invisible?',
-          'Would you rather have unlimited money or unlimited free time?',
-          'Would you rather live in the city or countryside?',
-          'Would you rather always be 10 minutes late or 20 minutes early?',
-          'Would you rather never use Discord again or never use TikTok again?'
-        ];
-
-        return interaction.reply(
-          `🤔 **Would you rather...**\n\n${
-            questions[
-              Math.floor(
-                Math.random() *
-                questions.length
-              )
-            ]
-          }`
-        );
-      }
-
-      /* =====================
-         TRIVIA
-      ===================== */
-
-      if (
-        command ===
-        'trivia'
-      ) {
-
-        const trivia = [
-          [
-            'What planet is known as the Red Planet?',
-            'Mars'
-          ],
-          [
-            'How many continents are there?',
-            '7'
-          ],
-          [
-            'What is the largest ocean?',
-            'Pacific Ocean'
-          ],
-          [
-            'What animal is known as the king of the jungle?',
-            'Lion'
-          ]
-        ];
-
-        const question =
-          trivia[
-            Math.floor(
-              Math.random() *
-              trivia.length
-            )
-          ];
-
-        return interaction.reply(
-          `🧠 **Trivia:** ${question[0]}\n\n` +
-          `Answer: ||${question[1]}||`
-        );
-      }
-
-      /* =====================
-         RANK
-      ===================== */
-
-      if (
-        command ===
-        'rank'
-      ) {
-
-        const xp =
-          data.xp[
-            interaction.user.id
-          ] || 0;
-
-        const level =
-          Math.floor(
-            xp / 100
-          ) + 1;
-
-        const progress =
-          xp % 100;
-
-        return interaction.reply(
-          `⭐ **${interaction.user.username}**\n\n` +
-          `Level: **${level}**\n` +
-          `XP: **${progress}/100**`
-        );
-      }
-
-      /* =====================
-         LEADERBOARD
-      ===================== */
-
-      if (
-        command ===
-        'leaderboard'
-      ) {
-
-        const entries =
-          Object.entries(
-            data.xp
-          )
-          .sort(
-            (a, b) =>
-              b[1] - a[1]
-          )
-          .slice(0, 10);
-
-        let text = '';
-
-        for (
-          let i = 0;
-          i < entries.length;
-          i++
-        ) {
-
-          const [
-            id,
-            xp
-          ] = entries[i];
-
-          const member =
-            interaction.guild
-              .members.cache
-              .get(id);
-
-          text +=
-            `**${i + 1}.** ${
-              member?.user.username ||
-              'Unknown'
-            } — ${xp} XP\n`;
-        }
-
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xffb6d9)
-              .setTitle(
-                '୨୧・ leaderboard'
-              )
-              .setDescription(
-                text ||
-                'Nobody has XP yet!'
-              )
-          ]
-        });
-      }
-
-      /* =====================
-         PROFILE
-      ===================== */
-
-      if (
-        command ===
-        'profile'
-      ) {
-
-        const xp =
-          data.xp[
-            interaction.user.id
-          ] || 0;
-
-        const level =
-          Math.floor(
-            xp / 100
-          ) + 1;
-
-        const bio =
-          data.bios[
-            interaction.user.id
-          ] ||
-          'No bio set.';
-
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xffb6d9)
-              .setTitle(
-                `୨୧・ ${interaction.user.username}`
-              )
-              .setDescription(
-                `**Bio**\n${bio}\n\n` +
-                `⭐ **Level:** ${level}\n` +
-                `✨ **XP:** ${xp}`
-              )
-          ]
-        });
-      }
-
-      /* =====================
-         SET BIO
-      ===================== */
-
-      if (
-        command ===
-        'setbio'
-      ) {
-
-        const bio =
-          interaction.options
-            .getString(
-              'bio'
-            );
-
-        data.bios[
-          interaction.user.id
-        ] = bio;
-
-        saveData();
-
-        return interaction.reply({
-          content:
-            '♡ Bio updated!',
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         FRIEND
-      ===================== */
-
-      if (
-        command ===
-        'friend'
-      ) {
-
-        const user =
-          interaction.options
-            .getUser(
-              'user'
-            );
-
-        if (
-          !data.friends[
-            interaction.user.id
-          ]
-        ) {
-          data.friends[
-            interaction.user.id
-          ] = [];
-        }
-
-        if (
-          !data.friends[
-            interaction.user.id
-          ].includes(
-            user.id
-          )
-        ) {
-
-          data.friends[
-            interaction.user.id
-          ].push(
-            user.id
-          );
-        }
-
-        saveData();
-
-        return interaction.reply(
-          `🫶 **${user.username}** was added to your friends!`
-        );
-      }
-
-      /* =====================
-         FRIENDS
-      ===================== */
-
-      if (
-        command ===
-        'friends'
-      ) {
-
-        const friends =
-          data.friends[
-            interaction.user.id
-          ] || [];
-
-        if (
-          !friends.length
-        ) {
-
-          return interaction.reply(
-            'You do not have any friends added yet 😭'
-          );
-        }
-
-        const names =
-          friends
-            .map(
-              id =>
-                interaction.guild
-                  .members.cache
-                  .get(id)
-                  ?.user.username
-            )
-            .filter(Boolean);
-
-        return interaction.reply(
-          `🫶 **Your friends:**\n${names.join('\n')}`
-        );
-      }
-
-      /* =====================
-         MODERATION CHECK
-      ===================== */
-
-      if (
-        [
-          'ban',
-          'kick',
-          'timeout',
-          'warn',
-          'warnings',
-          'clear'
-        ].includes(
-          command
-        )
-      ) {
-
-        if (
-          !isStaff(
-            interaction.member
-          )
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ You need a staff role to use this.',
-            ephemeral: true
-          });
-        }
-      }
-
-      /* =====================
-         BAN
-      ===================== */
-
-      if (
-        command ===
-        'ban'
-      ) {
-
-        if (
-          !isOwner(
-            interaction.member
-          )
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ Only the owner can ban members.',
-            ephemeral: true
-          });
-        }
-
-        const user =
-          interaction.options
-            .getUser(
-              'user'
-            );
-
-        const reason =
-          interaction.options
-            .getString(
-              'reason'
-            ) ||
-          'No reason provided';
-
-        const member =
-          await interaction.guild
-            .members
-            .fetch(
-              user.id
-            )
-            .catch(
-              () => null
-            );
-
-        if (
-          member &&
-          member.id ===
-            interaction.guild.ownerId
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ You cannot ban the server owner.',
-            ephemeral: true
-          });
-        }
-
-        if (
-          member &&
-          !canModerateTarget(
-            interaction.member,
-            member
-          )
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ You cannot ban this member.',
-            ephemeral: true
-          });
-        }
-
-        await interaction.guild
-          .members
-          .ban(
-            user.id,
-            {
-              reason
-            }
-          );
-
-        return interaction.reply(
-          `🔨 Banned **${user.tag}**`
-        );
-      }
-
-      /* =====================
-         KICK
-      ===================== */
-
-      if (
-        command ===
-        'kick'
-      ) {
-
-        const user =
-          interaction.options
-            .getUser(
-              'user'
-            );
-
-        const member =
-          await interaction.guild
-            .members
-            .fetch(
-              user.id
-            )
-            .catch(
-              () => null
-            );
-
-        if (!member) {
-
-          return interaction.reply({
-            content:
-              '❌ Member not found.',
-            ephemeral: true
-          });
-        }
-
-        if (
-          !canModerateTarget(
-            interaction.member,
-            member
-          )
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ You cannot kick this member.',
-            ephemeral: true
-          });
-        }
-
-        await member.kick(
-          interaction.options
-            .getString(
-              'reason'
-            ) ||
-          'No reason provided'
-        );
-
-        return interaction.reply(
-          `👢 Kicked **${user.tag}**`
-        );
-      }
-
-      /* =====================
-         TIMEOUT
-      ===================== */
-
-      if (
-        command ===
-        'timeout'
-      ) {
-
-        const user =
-          interaction.options
-            .getUser(
-              'user'
-            );
-
-        const minutes =
-          interaction.options
-            .getInteger(
-              'minutes'
-            );
-
-        const member =
-          await interaction.guild
-            .members
-            .fetch(
-              user.id
-            )
-            .catch(
-              () => null
-            );
-
-        if (!member) {
-
-          return interaction.reply({
-            content:
-              '❌ Member not found.',
-            ephemeral: true
-          });
-        }
-
-        if (
-          !canModerateTarget(
-            interaction.member,
-            member
-          )
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ You cannot timeout this member.',
-            ephemeral: true
-          });
-        }
-
-        await member.timeout(
-          minutes * 60 * 1000,
-          interaction.options
-            .getString(
-              'reason'
-            ) ||
-          'No reason provided'
-        );
-
-        return interaction.reply(
-          `⏰ Timed out **${user.tag}** for **${minutes} minutes**.`
-        );
-      }
-
-      /* =====================
-         WARN
-      ===================== */
-
-      if (
-        command ===
-        'warn'
-      ) {
-
-        const user =
-          interaction.options
-            .getUser(
-              'user'
-            );
-
-        const reason =
-          interaction.options
-            .getString(
-              'reason'
-            );
-
-        const member =
-          await interaction.guild
-            .members
-            .fetch(
-              user.id
-            )
-            .catch(
-              () => null
-            );
-
-        if (
-          member &&
-          !canModerateTarget(
-            interaction.member,
-            member
-          )
-        ) {
-
-          return interaction.reply({
-            content:
-              '❌ You cannot warn this member.',
-            ephemeral: true
-          });
-        }
-
-        if (
-          !data.warnings[
-            user.id
-          ]
-        ) {
-          data.warnings[
-            user.id
-          ] = [];
-        }
-
-        data.warnings[
-          user.id
-        ].push({
-          reason,
-          moderator:
-            interaction.user.id,
-          date:
-            Date.now()
-        });
-
-        saveData();
-
-        return interaction.reply(
-          `⚠️ Warned **${user.tag}**\nReason: ${reason}`
-        );
-      }
-
-      /* =====================
-         WARNINGS
-      ===================== */
-
-      if (
-        command ===
-        'warnings'
-      ) {
-
-        const user =
-          interaction.options
-            .getUser(
-              'user'
-            );
-
-        const warnings =
-          data.warnings[
-            user.id
-          ] || [];
-
-        if (
-          !warnings.length
-        ) {
-
-          return interaction.reply(
-            `✅ **${user.tag}** has no warnings.`
-          );
-        }
-
-        const text =
-          warnings
-            .map(
-              (warning, index) =>
-                `**${index + 1}.** ${warning.reason}`
-            )
-            .join('\n');
-
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xffb6d9)
-              .setTitle(
-                `⚠️・ ${user.tag}'s warnings`
-              )
-              .setDescription(
-                text
-              )
-          ]
-        });
-      }
-
-      /* =====================
-         CLEAR
-      ===================== */
-
-      if (
-        command ===
-        'clear'
-      ) {
-
-        const amount =
-          interaction.options
-            .getInteger(
-              'amount'
-            );
-
-        await interaction.channel
-          .bulkDelete(
-            amount,
-            true
-          );
-
-        return interaction.reply({
-          content:
-            `🧹 Deleted **${amount} messages**.`,
-          ephemeral: true
-        });
-      }
-
-      /* =====================
-         CONFESS COMMAND
-      ===================== */
-
-      if (
-        command ===
-        'confess'
-      ) {
-
-        const modal =
-          new ModalBuilder()
-            .setCustomId(
-              'confession_modal'
-            )
-            .setTitle(
-              'Anonymous Confession'
-            );
-
-        const input =
-          new TextInputBuilder()
-            .setCustomId(
-              'confession'
-            )
-            .setLabel(
-              'Your confession'
-            )
-            .setStyle(
-              TextInputStyle.Paragraph
-            )
-            .setMaxLength(1000)
-            .setRequired(true);
-
-        modal.addComponents(
-          new ActionRowBuilder()
-            .addComponents(input)
-        );
-
-        return interaction.showModal(
-          modal
-        );
-      }
-
-      /* =====================
-         SUGGEST COMMAND
-      ===================== */
-
-      if (
-        command ===
-        'suggest'
-      ) {
-
-        const modal =
-          new ModalBuilder()
-            .setCustomId(
-              'suggestion_modal'
-            )
-            .setTitle(
-              'Server Suggestion'
-            );
-
-        const input =
-          new TextInputBuilder()
-            .setCustomId(
-              'suggestion'
-            )
-            .setLabel(
-              'Your suggestion'
-            )
-            .setStyle(
-              TextInputStyle.Paragraph
-            )
-            .setMaxLength(1000)
-            .setRequired(true);
-
-        modal.addComponents(
-          new ActionRowBuilder()
-            .addComponents(input)
-        );
-
-        return interaction.showModal(
-          modal
-        );
-      }
-
-    } catch (err) {
-
-      console.error(
-        '❌ Interaction error:',
-        err
+    if (interaction.customId.startsWith("selfrole_")) {
+      const roleId = interaction.customId.replace(
+        "selfrole_",
+        ""
       );
 
-      if (
-        interaction.replied ||
-        interaction.deferred
-      ) {
+      const role = interaction.guild.roles.cache.get(roleId);
 
-        await interaction.editReply({
-          content:
-            '❌ Something went wrong.'
-        }).catch(
-          () => {}
-        );
-
-      } else {
-
-        await interaction.reply({
-          content:
-            '❌ Something went wrong.',
+      if (!role) {
+        return interaction.reply({
+          content: "That role no longer exists.",
           ephemeral: true
-        }).catch(
-          () => {}
-        );
+        });
       }
+
+      if (interaction.member.roles.cache.has(role.id)) {
+        await interaction.member.roles.remove(role);
+
+        return interaction.reply({
+          content: `Removed **${role.name}** ♡`,
+          ephemeral: true
+        });
+      }
+
+      await interaction.member.roles.add(role);
+
+      return interaction.reply({
+        content: `Added **${role.name}** ♡`,
+        ephemeral: true
+      });
+    }
+
+    /* Support ticket */
+
+    if (interaction.customId === "support_ticket") {
+      const guild = interaction.guild;
+
+      const existing = guild.channels.cache.find(
+        c =>
+          c.name === `support-${interaction.user.id}` &&
+          c.type === ChannelType.GuildText
+      );
+
+      if (existing) {
+        return interaction.reply({
+          content: `You already have a ticket: ${existing}`,
+          ephemeral: true
+        });
+      }
+
+      const staffRoles = getStaffRoles(guild);
+
+      const overwrites = [
+        {
+          id: guild.roles.everyone.id,
+          deny: [PermissionsBitField.Flags.ViewChannel]
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.ReadMessageHistory
+          ]
+        }
+      ];
+
+      for (const role of staffRoles) {
+        overwrites.push({
+          id: role.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.ReadMessageHistory
+          ]
+        });
+      }
+
+      const category = getChannel(guild, "004・TICKETS");
+
+      const ticket = await guild.channels.create({
+        name: `support-${interaction.user.username}`
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, "")
+          .slice(0, 20),
+        type: ChannelType.GuildText,
+        parent: category?.id,
+        permissionOverwrites: overwrites
+      });
+
+      const closeButton = new ButtonBuilder()
+        .setCustomId("close_ticket")
+        .setLabel("close ticket")
+        .setEmoji("🔒")
+        .setStyle(ButtonStyle.Danger);
+
+      await ticket.send({
+        content: `${interaction.user}`,
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("🫶 support ticket")
+            .setDescription(
+              "tell staff what you need help with.\n\n" +
+              "a staff member will be with you soon ♡"
+            )
+        ],
+        components: [
+          new ActionRowBuilder().addComponents(closeButton)
+        ]
+      });
+
+      return interaction.reply({
+        content: `Your ticket has been created: ${ticket}`,
+        ephemeral: true
+      });
+    }
+
+    /* Close ticket */
+
+    if (interaction.customId === "close_ticket") {
+      if (!isStaff(interaction.member)) {
+        return interaction.reply({
+          content: "You need a staff role to close tickets.",
+          ephemeral: true
+        });
+      }
+
+      await interaction.reply({
+        content: "🔒 Closing ticket..."
+      });
+
+      setTimeout(() => {
+        interaction.channel.delete().catch(() => {});
+      }, 1500);
+
+      return;
+    }
+
+    /* Partnership */
+
+    if (interaction.customId === "partnership") {
+      const modal = new ModalBuilder()
+        .setCustomId("partnership_modal")
+        .setTitle("partnership application");
+
+      const serverName = new TextInputBuilder()
+        .setCustomId("server_name")
+        .setLabel("server name")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const serverInvite = new TextInputBuilder()
+        .setCustomId("server_invite")
+        .setLabel("server invite")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      const members = new TextInputBuilder()
+        .setCustomId("member_count")
+        .setLabel("member count")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(serverName),
+        new ActionRowBuilder().addComponents(serverInvite),
+        new ActionRowBuilder().addComponents(members)
+      );
+
+      return interaction.showModal(modal);
     }
   }
-);
 
-/* =========================
-   XP SYSTEM
-========================= */
+  if (interaction.isModalSubmit()) {
 
-const xpCooldown =
-  new Map();
+    if (interaction.customId === "partnership_modal") {
+      const guild = interaction.guild;
 
-client.on(
-  'messageCreate',
-  async message => {
+      const category = getChannel(guild, "004・TICKETS");
 
-    if (
-      message.author.bot ||
-      !message.guild
-    ) {
-      return;
+      const name = interaction.fields.getTextInputValue("server_name");
+      const invite = interaction.fields.getTextInputValue("server_invite");
+      const members = interaction.fields.getTextInputValue("member_count");
+
+      const overwrites = [
+        {
+          id: guild.roles.everyone.id,
+          deny: [PermissionsBitField.Flags.ViewChannel]
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.ReadMessageHistory
+          ]
+        }
+      ];
+
+      for (const role of getStaffRoles(guild)) {
+        overwrites.push({
+          id: role.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.ReadMessageHistory
+          ]
+        });
+      }
+
+      const ticket = await guild.channels.create({
+        name: `partner-${interaction.user.username}`
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, "")
+          .slice(0, 20),
+        type: ChannelType.GuildText,
+        parent: category?.id,
+        permissionOverwrites: overwrites
+      });
+
+      await ticket.send({
+        content: `${interaction.user}`,
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("💜 partnership application")
+            .addFields(
+              {
+                name: "server",
+                value: name
+              },
+              {
+                name: "invite",
+                value: invite
+              },
+              {
+                name: "members",
+                value: members
+              }
+            )
+        ]
+      });
+
+      return interaction.reply({
+        content: `Partnership ticket created: ${ticket}`,
+        ephemeral: true
+      });
     }
 
-    const now =
-      Date.now();
+    if (interaction.customId === "confession_modal") {
+      const confession =
+        interaction.fields.getTextInputValue("confession");
 
-    const last =
-      xpCooldown.get(
-        message.author.id
-      ) || 0;
+      const channel = getChannel(
+        interaction.guild,
+        "୨୧・confessions"
+      );
 
-    if (
-      now - last <
-      60000
-    ) {
-      return;
+      if (!channel) {
+        return interaction.reply({
+          content: "The confession channel doesn't exist.",
+          ephemeral: true
+        });
+      }
+
+      await channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("♡ anonymous confession")
+            .setDescription(confession)
+            .setFooter({ text: "anonymous" })
+        ]
+      });
+
+      return interaction.reply({
+        content: "Your confession was sent anonymously ♡",
+        ephemeral: true
+      });
+    }
+  }
+
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName } = interaction;
+
+  /* =========================
+     /SEND — ONE TIME ONLY
+  ========================= */
+
+  if (commandName === "send") {
+
+    if (!isOwner(interaction.member)) {
+      return interaction.reply({
+        content: "👑 Only the owner can use this command.",
+        ephemeral: true
+      });
     }
 
-    xpCooldown.set(
-      message.author.id,
-      now
+    if (data.sendUsed) {
+      return interaction.reply({
+        content: "❌ `/send` has already been used.",
+        ephemeral: true
+      });
+    }
+
+    const channel = interaction.options.getChannel("channel");
+    const message = interaction.options.getString("message");
+
+    if (!channel || channel.type !== ChannelType.GuildText) {
+      return interaction.reply({
+        content: "❌ Choose a text channel.",
+        ephemeral: true
+      });
+    }
+
+    try {
+      await channel.send(message);
+
+      data.sendUsed = true;
+      saveData();
+
+      /*
+        Delete /send from Discord's command list.
+      */
+
+      try {
+        const command =
+          await client.application.commands.fetch();
+
+        const sendCommand = command.find(
+          c => c.name === "send"
+        );
+
+        if (sendCommand) {
+          await sendCommand.delete();
+        }
+      } catch (err) {
+        console.log(
+          "Could not remove /send:",
+          err.message
+        );
+      }
+
+      return interaction.reply({
+        content:
+          `✅ Sent the message to ${channel}.\n` +
+          `🔒 `/send` has now been permanently used and removed.`,
+        ephemeral: true
+      });
+
+    } catch (err) {
+      console.error(err);
+
+      return interaction.reply({
+        content: "❌ I couldn't send the message there.",
+        ephemeral: true
+      });
+    }
+  }
+
+  /* =========================
+     RESET
+  ========================= */
+
+  if (commandName === "resetserver") {
+
+    if (!isOwner(interaction.member)) {
+      return interaction.reply({
+        content: "👑 Only the owner can reset the server.",
+        ephemeral: true
+      });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      await resetServer(interaction.guild);
+
+      await interaction.editReply(
+        "✅ Server completely rebuilt.\n\n" +
+        "♡ channels created\n" +
+        "♡ roles created\n" +
+        "♡ welcome/goodbye enabled\n" +
+        "♡ staff chat created\n" +
+        "♡ role menu installed\n" +
+        "♡ no games channel\n" +
+        "♡ no 18+ role"
+      );
+    } catch (err) {
+      console.error(err);
+
+      await interaction.editReply(
+        "❌ Something went wrong while rebuilding the server."
+      );
+    }
+
+    return;
+  }
+
+  /* =========================
+     FUN COMMANDS
+  ========================= */
+
+  if (commandName === "coinflip") {
+    const result = Math.random() < 0.5 ? "heads" : "tails";
+
+    return interaction.reply(
+      `🪙 You flipped **${result}**!`
     );
+  }
 
-    data.xp[
-      message.author.id
-    ] =
-      (
-        data.xp[
-          message.author.id
-        ] || 0
-      ) +
-      Math.floor(
-        Math.random() * 11
-      ) +
-      10;
+  if (commandName === "roll") {
+    const number = Math.floor(Math.random() * 100) + 1;
+
+    return interaction.reply(
+      `🎲 You rolled **${number}**!`
+    );
+  }
+
+  if (commandName === "8ball") {
+    const answers = [
+      "yes ♡",
+      "no 😭",
+      "probably",
+      "probably not",
+      "definitely",
+      "not looking good...",
+      "ask again later",
+      "maybe",
+      "100%"
+    ];
+
+    const answer =
+      answers[Math.floor(Math.random() * answers.length)];
+
+    return interaction.reply(
+      `🎱 **${answer}**`
+    );
+  }
+
+  if (commandName === "rps") {
+    const choices = ["rock", "paper", "scissors"];
+
+    const userChoice =
+      interaction.options.getString("choice");
+
+    const botChoice =
+      choices[Math.floor(Math.random() * choices.length)];
+
+    let result;
+
+    if (userChoice === botChoice) {
+      result = "tie!";
+    } else if (
+      (userChoice === "rock" && botChoice === "scissors") ||
+      (userChoice === "paper" && botChoice === "rock") ||
+      (userChoice === "scissors" && botChoice === "paper")
+    ) {
+      result = "you win! ♡";
+    } else {
+      result = "I win 😭";
+    }
+
+    return interaction.reply(
+      `✊ **${userChoice}** vs **${botChoice}**\n${result}`
+    );
+  }
+
+  if (commandName === "wouldyourather") {
+    const questions = [
+      "Would you rather be able to fly or become invisible?",
+      "Would you rather have unlimited money or unlimited free time?",
+      "Would you rather live in the future or the past?",
+      "Would you rather never use social media again or never watch TV again?",
+      "Would you rather always be 10 minutes late or 20 minutes early?"
+    ];
+
+    return interaction.reply(
+      `♡ **Would you rather...**\n\n${
+        questions[Math.floor(Math.random() * questions.length)]
+      }`
+    );
+  }
+
+  if (commandName === "trivia") {
+    const trivia = [
+      ["What planet is known as the Red Planet?", "Mars"],
+      ["How many sides does a hexagon have?", "6"],
+      ["What is the largest ocean?", "Pacific Ocean"],
+      ["What animal is known as the king of the jungle?", "Lion"],
+      ["How many continents are there?", "7"]
+    ];
+
+    const [question, answer] =
+      trivia[Math.floor(Math.random() * trivia.length)];
+
+    return interaction.reply(
+      `🧠 **Trivia:** ${question}\n\nAnswer: ||${answer}||`
+    );
+  }
+
+  /* =========================
+     XP
+  ========================= */
+
+  if (commandName === "rank") {
+    const id = interaction.user.id;
+
+    if (!data.xp[id]) {
+      data.xp[id] = {
+        xp: 0,
+        level: 1
+      };
+    }
+
+    const userData = data.xp[id];
+
+    return interaction.reply(
+      `⭐ **${interaction.user.username}**\n` +
+      `Level: **${userData.level}**\n` +
+      `XP: **${userData.xp}**`
+    );
+  }
+
+  if (commandName === "leaderboard") {
+    const entries = Object.entries(data.xp)
+      .sort((a, b) => b[1].xp - a[1].xp)
+      .slice(0, 10);
+
+    if (!entries.length) {
+      return interaction.reply("Nobody has XP yet 😭");
+    }
+
+    let text = "";
+
+    for (let i = 0; i < entries.length; i++) {
+      const user = await client.users.fetch(entries[i][0])
+        .catch(() => null);
+
+      if (!user) continue;
+
+      text += `${i + 1}. **${user.username}** — ${entries[i][1].xp} XP\n`;
+    }
+
+    return interaction.reply(
+      `🏆 **XP Leaderboard**\n\n${text}`
+    );
+  }
+
+  /* =========================
+     PROFILE
+  ========================= */
+
+  if (commandName === "profile") {
+    const user =
+      interaction.options.getUser("user") ||
+      interaction.user;
+
+    if (!data.xp[user.id]) {
+      data.xp[user.id] = {
+        xp: 0,
+        level: 1
+      };
+    }
+
+    const userData = data.xp[user.id];
+
+    const embed = new EmbedBuilder()
+      .setTitle(`♡ ${user.username}`)
+      .setThumbnail(user.displayAvatarURL())
+      .addFields(
+        {
+          name: "bio",
+          value: data.bios[user.id] || "No bio set."
+        },
+        {
+          name: "level",
+          value: `${userData.level}`
+        },
+        {
+          name: "xp",
+          value: `${userData.xp}`
+        }
+      );
+
+    return interaction.reply({
+      embeds: [embed]
+    });
+  }
+
+  if (commandName === "setbio") {
+    const bio = interaction.options.getString("bio");
+
+    data.bios[interaction.user.id] = bio;
+    saveData();
+
+    return interaction.reply({
+      content: "♡ Your bio has been updated!",
+      ephemeral: true
+    });
+  }
+
+  /* =========================
+     FRIENDS
+  ========================= */
+
+  if (commandName === "friend") {
+    const user = interaction.options.getUser("user");
+
+    if (user.id === interaction.user.id) {
+      return interaction.reply({
+        content: "You can't add yourself 😭",
+        ephemeral: true
+      });
+    }
+
+    if (!data.friends[interaction.user.id]) {
+      data.friends[interaction.user.id] = [];
+    }
+
+    if (!data.friends[interaction.user.id].includes(user.id)) {
+      data.friends[interaction.user.id].push(user.id);
+    }
 
     saveData();
 
-    const xp =
-      data.xp[
-        message.author.id
-      ];
-
-    const oldLevel =
-      Math.floor(
-        (xp - 10) / 100
-      ) + 1;
-
-    const newLevel =
-      Math.floor(
-        xp / 100
-      ) + 1;
-
-    if (
-      newLevel >
-      oldLevel
-    ) {
-
-      const channel =
-        getChannel(
-          message.guild,
-          '୨୧・levels'
-        );
-
-      if (channel) {
-
-        await channel.send(
-          `🎉 ${message.author} reached **Level ${newLevel}**! ♡`
-        );
-      }
-    }
-  }
-);
-
-/* =========================
-   WELCOME SYSTEM
-========================= */
-
-client.on(
-  'guildMemberAdd',
-  async member => {
-
-    const welcome =
-      getChannel(
-        member.guild,
-        '୨୧・welcome'
-      );
-
-    if (welcome) {
-
-      await welcome.send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xffb6d9)
-            .setTitle(
-              '୨୧・ new member ♡'
-            )
-            .setDescription(
-              `welcome ${member}!\n\n` +
-              `you are member **#${member.guild.memberCount}** of **${member.guild.name}** ♡\n\n` +
-              'make sure to read the rules and grab your roles!'
-            )
-            .setThumbnail(
-              member.user.displayAvatarURL({
-                size: 256
-              })
-            )
-            .setFooter({
-              text:
-                '୨୧ welcome to the community!'
-            })
-        ]
-      }).catch(
-        () => {}
-      );
-    }
-  }
-);
-
-/* =========================
-   GOODBYE SYSTEM
-========================= */
-
-client.on(
-  'guildMemberRemove',
-  async member => {
-
-    const goodbye =
-      getChannel(
-        member.guild,
-        '୨୧・goodbye'
-      );
-
-    if (!goodbye) {
-      return;
-    }
-
-    await goodbye.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb6d9)
-          .setTitle(
-            '୨୧・ goodbye ♡'
-          )
-          .setDescription(
-            `**${member.user.tag}** has left the server.\n\n` +
-            'we hope to see you again someday ♡'
-          )
-          .setThumbnail(
-            member.user.displayAvatarURL({
-              size: 256
-            })
-          )
-      ]
-    }).catch(
-      () => {}
+    return interaction.reply(
+      `🫶 Added **${user.username}** to your friends!`
     );
   }
-);
 
-/* =========================
-   BOOST SYSTEM
-========================= */
+  if (commandName === "friends") {
+    const friends = data.friends[interaction.user.id] || [];
 
-client.on(
-  'guildMemberUpdate',
-  async (
-    oldMember,
-    newMember
-  ) => {
-
-    if (
-      !oldMember.premiumSince &&
-      newMember.premiumSince
-    ) {
-
-      const booster =
-        getRole(
-          newMember.guild,
-          '🌸・booster'
-        );
-
-      if (booster) {
-
-        await newMember.roles
-          .add(booster)
-          .catch(
-            () => {}
-          );
-      }
-
-      const channel =
-        getChannel(
-          newMember.guild,
-          '୨୧・boosts'
-        );
-
-      if (channel) {
-
-        await channel.send(
-          `🌸 ${newMember} just boosted the server! Thank you ♡`
-        ).catch(
-          () => {}
-        );
-      }
+    if (!friends.length) {
+      return interaction.reply(
+        "You don't have any saved friends yet ♡"
+      );
     }
 
-    if (
-      oldMember.premiumSince &&
-      !newMember.premiumSince
-    ) {
+    const names = [];
 
-      const booster =
-        getRole(
-          newMember.guild,
-          '🌸・booster'
-        );
+    for (const id of friends) {
+      const user = await client.users.fetch(id)
+        .catch(() => null);
 
-      if (booster) {
+      if (user) names.push(`♡ ${user.username}`);
+    }
 
-        await newMember.roles
-          .remove(booster)
-          .catch(
-            () => {}
-          );
-      }
+    return interaction.reply(
+      `🫶 **Your friends**\n\n${names.join("\n")}`
+    );
+  }
+
+  /* =========================
+     MODERATION
+  ========================= */
+
+  if (
+    ["kick", "timeout", "warn", "warnings", "clear"].includes(
+      commandName
+    )
+  ) {
+    if (!isStaff(interaction.member)) {
+      return interaction.reply({
+        content: "🛡️ You need a staff role to use this.",
+        ephemeral: true
+      });
     }
   }
-);
+
+  if (commandName === "ban") {
+    if (!isOwner(interaction.member)) {
+      return interaction.reply({
+        content: "👑 Only the owner can ban members.",
+        ephemeral: true
+      });
+    }
+
+    const user = interaction.options.getUser("user");
+    const reason =
+      interaction.options.getString("reason") ||
+      "No reason provided";
+
+    const member =
+      await interaction.guild.members
+        .fetch(user.id)
+        .catch(() => null);
+
+    if (!member) {
+      return interaction.reply({
+        content: "That member isn't in the server.",
+        ephemeral: true
+      });
+    }
+
+    if (!canModerate(interaction.member, member)) {
+      return interaction.reply({
+        content: "You can't ban someone with an equal/higher role.",
+        ephemeral: true
+      });
+    }
+
+    await member.ban({ reason });
+
+    return interaction.reply(
+      `🔨 Banned **${user.username}**\nReason: ${reason}`
+    );
+  }
+
+  if (commandName === "kick") {
+    const user = interaction.options.getUser("user");
+    const reason =
+      interaction.options.getString("reason") ||
+      "No reason provided";
+
+    const member =
+      await interaction.guild.members
+        .fetch(user.id)
+        .catch(() => null);
+
+    if (!member || !canModerate(interaction.member, member)) {
+      return interaction.reply({
+        content: "You can't kick that member.",
+        ephemeral: true
+      });
+    }
+
+    await member.kick(reason);
+
+    return interaction.reply(
+      `👢 Kicked **${user.username}**\nReason: ${reason}`
+    );
+  }
+
+  if (commandName === "timeout") {
+    const user = interaction.options.getUser("user");
+    const minutes =
+      interaction.options.getInteger("minutes");
+
+    const member =
+      await interaction.guild.members
+        .fetch(user.id)
+        .catch(() => null);
+
+    if (!member || !canModerate(interaction.member, member)) {
+      return interaction.reply({
+        content: "You can't timeout that member.",
+        ephemeral: true
+      });
+    }
+
+    await member.timeout(
+      minutes * 60 * 1000,
+      `Timeout by ${interaction.user.username}`
+    );
+
+    return interaction.reply(
+      `⏰ Timed out **${user.username}** for **${minutes} minutes**.`
+    );
+  }
+
+  if (commandName === "warn") {
+    const user = interaction.options.getUser("user");
+    const reason =
+      interaction.options.getString("reason");
+
+    const member =
+      await interaction.guild.members
+        .fetch(user.id)
+        .catch(() => null);
+
+    if (!member || !canModerate(interaction.member, member)) {
+      return interaction.reply({
+        content: "You can't warn that member.",
+        ephemeral: true
+      });
+    }
+
+    if (!data.warnings[user.id]) {
+      data.warnings[user.id] = [];
+    }
+
+    data.warnings[user.id].push({
+      reason,
+      moderator: interaction.user.id,
+      date: Date.now()
+    });
+
+    saveData();
+
+    return interaction.reply(
+      `⚠️ **${user.username}** has been warned.\nReason: ${reason}`
+    );
+  }
+
+  if (commandName === "warnings") {
+    const user = interaction.options.getUser("user");
+
+    const warnings = data.warnings[user.id] || [];
+
+    if (!warnings.length) {
+      return interaction.reply(
+        `♡ ${user.username} has no warnings.`
+      );
+    }
+
+    const text = warnings
+      .map(
+        (w, i) =>
+          `**${i + 1}.** ${w.reason}`
+      )
+      .join("\n");
+
+    return interaction.reply(
+      `⚠️ **Warnings for ${user.username}**\n\n${text}`
+    );
+  }
+
+  if (commandName === "clear") {
+    const amount =
+      interaction.options.getInteger("amount");
+
+    await interaction.channel.bulkDelete(amount, true);
+
+    return interaction.reply({
+      content: `🧹 Deleted ${amount} messages.`,
+      ephemeral: true
+    });
+  }
+
+  /* =========================
+     CONFESS
+  ========================= */
+
+  if (commandName === "confess") {
+    const modal = new ModalBuilder()
+      .setCustomId("confession_modal")
+      .setTitle("♡ anonymous confession");
+
+    const input = new TextInputBuilder()
+      .setCustomId("confession")
+      .setLabel("your confession")
+      .setPlaceholder("write anything...")
+      .setStyle(TextInputStyle.Paragraph)
+      .setMaxLength(1000)
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(input)
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  /* =========================
+     SUGGESTIONS
+  ========================= */
+
+  if (commandName === "suggest") {
+    const suggestion =
+      interaction.options.getString("suggestion");
+
+    const channel = getChannel(
+      interaction.guild,
+      "୨୧・suggestions"
+    );
+
+    if (!channel) {
+      return interaction.reply({
+        content: "Suggestion channel doesn't exist.",
+        ephemeral: true
+      });
+    }
+
+    const message = await channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("୨୧ suggestion")
+          .setDescription(suggestion)
+          .setFooter({
+            text: `Suggested by ${interaction.user.username}`
+          })
+      ]
+    });
+
+    await message.react("👍");
+    await message.react("👎");
+
+    return interaction.reply({
+      content: "♡ Your suggestion was posted!",
+      ephemeral: true
+    });
+  }
+});
+
+/* =========================
+   WELCOME
+========================= */
+
+client.on("guildMemberAdd", async member => {
+  const memberRole = getRole(member.guild, "Member");
+
+  if (memberRole) {
+    await member.roles.add(memberRole).catch(() => {});
+  }
+
+  const channel = getChannel(
+    member.guild,
+    "୨୧・welcome"
+  );
+
+  if (!channel) return;
+
+  await channel.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("🌸 welcome!")
+        .setDescription(
+          `welcome ${member} ♡\n\n` +
+          "make yourself comfortable and say hi!"
+        )
+        .setThumbnail(member.user.displayAvatarURL())
+    ]
+  });
+});
+
+/* =========================
+   GOODBYE
+========================= */
+
+client.on("guildMemberRemove", async member => {
+  const channel = getChannel(
+    member.guild,
+    "୨୧・goodbye"
+  );
+
+  if (!channel) return;
+
+  await channel.send({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("☁ goodbye")
+        .setDescription(
+          `**${member.user.username}** has left the server.`
+        )
+    ]
+  });
+});
+
+/* =========================
+   BOOSTS
+========================= */
+
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
+  const oldBoost = oldMember.premiumSince;
+  const newBoost = newMember.premiumSince;
+
+  if (!oldBoost && newBoost) {
+    const channel = getChannel(
+      newMember.guild,
+      "୨୧・boosts"
+    );
+
+    const boosterRole = getRole(
+      newMember.guild,
+      "🌸・booster"
+    );
+
+    if (boosterRole) {
+      await newMember.roles.add(boosterRole).catch(() => {});
+    }
+
+    if (channel) {
+      await channel.send(
+        `🌸 ${newMember} just boosted the server! thank you ♡`
+      );
+    }
+  }
+
+  if (oldBoost && !newBoost) {
+    const boosterRole = getRole(
+      newMember.guild,
+      "🌸・booster"
+    );
+
+    if (boosterRole) {
+      await newMember.roles.remove(boosterRole).catch(() => {});
+    }
+  }
+});
+
+/* =========================
+   XP
+========================= */
+
+const xpCooldown = new Map();
+
+client.on("messageCreate", async message => {
+  if (message.author.bot) return;
+
+  const now = Date.now();
+  const last = xpCooldown.get(message.author.id) || 0;
+
+  if (now - last < 60000) return;
+
+  xpCooldown.set(message.author.id, now);
+
+  if (!data.xp[message.author.id]) {
+    data.xp[message.author.id] = {
+      xp: 0,
+      level: 1
+    };
+  }
+
+  const userData = data.xp[message.author.id];
+
+  userData.xp += Math.floor(Math.random() * 10) + 5;
+
+  const needed = userData.level * 100;
+
+  if (userData.xp >= needed) {
+    userData.xp -= needed;
+    userData.level++;
+
+    const levelChannel = getChannel(
+      message.guild,
+      "୨୧・levels"
+    );
+
+    if (levelChannel) {
+      await levelChannel.send(
+        `⭐ ${message.author} reached **level ${userData.level}**! ♡`
+      );
+    }
+  }
+
+  saveData();
+});
 
 /* =========================
    LOGIN
 ========================= */
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
