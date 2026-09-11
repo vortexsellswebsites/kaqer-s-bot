@@ -17,9 +17,9 @@ const {
 const fs = require("fs");
 const path = require("path");
 
-// =====================================================
+// ======================================================
 // BOT
-// =====================================================
+// ======================================================
 
 const client = new Client({
   intents: [
@@ -33,29 +33,24 @@ const client = new Client({
 const TOKEN = process.env.TOKEN;
 
 if (!TOKEN) {
-  console.error("❌ TOKEN is missing.");
+  console.error("❌ TOKEN is missing from Railway variables.");
   process.exit(1);
 }
 
-// =====================================================
+// ======================================================
 // BACKUP STORAGE
-// =====================================================
+// ======================================================
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const BACKUP_FILE = path.join(
-  DATA_DIR,
-  "server-backup.json"
-);
+const BACKUP_FILE = path.join(DATA_DIR, "server-backup.json");
 
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, {
-    recursive: true,
-  });
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// =====================================================
-// ROLES
-// =====================================================
+// ======================================================
+// ROLE NAMES
+// ======================================================
 
 const ROLES = {
   owner: "👑 Owner",
@@ -76,20 +71,16 @@ const STAFF_ROLES = [
   ROLES.support,
 ];
 
-// =====================================================
+// ======================================================
 // HELPERS
-// =====================================================
+// ======================================================
 
 function findRole(guild, name) {
-  return guild.roles.cache.find(
-    (role) => role.name === name
-  );
+  return guild.roles.cache.find((role) => role.name === name);
 }
 
 function findChannel(guild, name) {
-  return guild.channels.cache.find(
-    (channel) => channel.name === name
-  );
+  return guild.channels.cache.find((channel) => channel.name === name);
 }
 
 function isStaff(member) {
@@ -100,101 +91,75 @@ function isStaff(member) {
   );
 }
 
-// =====================================================
-// SAVE CURRENT SERVER
-// =====================================================
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function safeName(name) {
+  return name.replace(/[^a-zA-Z0-9-_]/g, "-").slice(0, 90);
+}
+
+// ======================================================
+// BACKUP
+// ======================================================
 
 async function saveBackup(guild) {
   await guild.roles.fetch();
   await guild.channels.fetch();
 
   const roles = guild.roles.cache
-    .filter(
-      (role) =>
-        role.id !== guild.id &&
-        !role.managed
-    )
+    .filter((role) => !role.managed && role.id !== guild.id)
+    .sort((a, b) => a.position - b.position)
     .map((role) => ({
       name: role.name,
       color: role.hexColor,
       hoist: role.hoist,
       mentionable: role.mentionable,
+      permissions: role.permissions.bitfield.toString(),
       position: role.position,
-      permissions:
-        role.permissions.bitfield.toString(),
     }));
 
   const categories = guild.channels.cache
-    .filter(
-      (channel) =>
-        channel.type ===
-        ChannelType.GuildCategory
-    )
-    .sort(
-      (a, b) =>
-        a.position - b.position
-    )
-    .map((category) => ({
-      name: category.name,
-      position: category.position,
-
-      permissionOverwrites:
-        category.permissionOverwrites.cache.map(
-          (overwrite) => ({
-            id: overwrite.id,
-            type: overwrite.type,
-            allow:
-              overwrite.allow.bitfield.toString(),
-            deny:
-              overwrite.deny.bitfield.toString(),
-          })
-        ),
+    .filter((channel) => channel.type === ChannelType.GuildCategory)
+    .sort((a, b) => a.position - b.position)
+    .map((channel) => ({
+      name: channel.name,
+      position: channel.position,
+      permissionOverwrites: channel.permissionOverwrites.cache.map(
+        (overwrite) => ({
+          id: overwrite.id,
+          type: overwrite.type,
+          allow: overwrite.allow.bitfield.toString(),
+          deny: overwrite.deny.bitfield.toString(),
+        })
+      ),
     }));
 
   const channels = guild.channels.cache
-    .filter(
-      (channel) =>
-        channel.type ===
-          ChannelType.GuildText ||
-        channel.type ===
-          ChannelType.GuildVoice ||
-        channel.type ===
-          ChannelType.GuildAnnouncement
-    )
-    .sort(
-      (a, b) =>
-        a.position - b.position
-    )
+    .filter((channel) => channel.type !== ChannelType.GuildCategory)
+    .sort((a, b) => a.position - b.position)
     .map((channel) => ({
       name: channel.name,
       type: channel.type,
-      parentName:
-        channel.parent?.name || null,
+      parentName: channel.parent?.name || null,
       position: channel.position,
       topic: channel.topic || null,
       nsfw: channel.nsfw || false,
-      rateLimitPerUser:
-        channel.rateLimitPerUser || 0,
-
-      permissionOverwrites:
-        channel.permissionOverwrites.cache.map(
-          (overwrite) => ({
-            id: overwrite.id,
-            type: overwrite.type,
-            allow:
-              overwrite.allow.bitfield.toString(),
-            deny:
-              overwrite.deny.bitfield.toString(),
-          })
-        ),
+      rateLimitPerUser: channel.rateLimitPerUser || 0,
+      permissionOverwrites: channel.permissionOverwrites.cache.map(
+        (overwrite) => ({
+          id: overwrite.id,
+          type: overwrite.type,
+          allow: overwrite.allow.bitfield.toString(),
+          deny: overwrite.deny.bitfield.toString(),
+        })
+      ),
     }));
 
   const backup = {
     guildId: guild.id,
     guildName: guild.name,
-    savedAt:
-      new Date().toISOString(),
-
+    savedAt: new Date().toISOString(),
     roles,
     categories,
     channels,
@@ -202,21 +167,12 @@ async function saveBackup(guild) {
 
   fs.writeFileSync(
     BACKUP_FILE,
-    JSON.stringify(
-      backup,
-      null,
-      2
-    )
+    JSON.stringify(backup, null, 2),
+    "utf8"
   );
 
-  console.log(
-    `💾 backup saved for ${guild.name}`
-  );
+  return backup;
 }
-
-// =====================================================
-// LOAD BACKUP
-// =====================================================
 
 function loadBackup() {
   if (!fs.existsSync(BACKUP_FILE)) {
@@ -225,559 +181,390 @@ function loadBackup() {
 
   try {
     return JSON.parse(
-      fs.readFileSync(
-        BACKUP_FILE,
-        "utf8"
-      )
+      fs.readFileSync(BACKUP_FILE, "utf8")
     );
   } catch (error) {
-    console.error(
-      "❌ backup file is invalid:",
-      error
-    );
-
+    console.error("❌ Could not read backup:", error);
     return null;
   }
 }
 
-// =====================================================
+// ======================================================
 // RESTORE BACKUP
-// =====================================================
+// ======================================================
 
 async function restoreBackup(guild) {
   const backup = loadBackup();
 
   if (!backup) {
     throw new Error(
-      "No backup has been saved yet."
+      "No backup exists. Use /save-backup first."
     );
   }
 
-  if (
-    backup.guildId !== guild.id
-  ) {
+  if (backup.guildId !== guild.id) {
     throw new Error(
-      "Backup belongs to another server."
+      "This backup belongs to a different server."
     );
   }
 
   await guild.roles.fetch();
   await guild.channels.fetch();
 
-  console.log(
-    `🛡️ restoring ${guild.name}...`
-  );
+  // ----------------------------------------------------
+  // RESTORE ROLES
+  // ----------------------------------------------------
 
-  // ===================================================
-  // ROLES
-  // ===================================================
+  const roleMap = new Map();
 
   for (const savedRole of backup.roles) {
-    let role = guild.roles.cache.find(
-      (r) =>
-        r.name === savedRole.name &&
-        !r.managed
-    );
+    let role = findRole(guild, savedRole.name);
 
     if (!role) {
-      try {
-        role =
-          await guild.roles.create({
-            name: savedRole.name,
-            color:
-              savedRole.color,
-            hoist:
-              savedRole.hoist,
-            mentionable:
-              savedRole.mentionable,
-            permissions:
-              BigInt(
-                savedRole.permissions
-              ),
-            reason:
-              "emergency backup recovery",
-          });
-      } catch (error) {
-        console.error(
-          `❌ couldn't restore role ${savedRole.name}:`,
-          error.message
-        );
-      }
+      role = await guild.roles.create({
+        name: savedRole.name,
+        color: savedRole.color === "#000000" ? undefined : savedRole.color,
+        hoist: savedRole.hoist,
+        mentionable: savedRole.mentionable,
+        permissions: BigInt(savedRole.permissions),
+        reason: "Emergency server backup restore",
+      });
     }
+
+    roleMap.set(savedRole.name, role);
   }
 
-  // ===================================================
-  // CATEGORIES
-  // ===================================================
+  // ----------------------------------------------------
+  // RESTORE CATEGORIES
+  // ----------------------------------------------------
 
-  const categoryMap =
-    new Map();
+  const categoryMap = new Map();
 
-  for (const savedCategory of
-    backup.categories) {
-    let category =
-      guild.channels.cache.find(
-        (channel) =>
-          channel.type ===
-            ChannelType.GuildCategory &&
-          channel.name ===
-            savedCategory.name
-      );
+  for (const savedCategory of backup.categories) {
+    let category = findChannel(guild, savedCategory.name);
 
-    if (!category) {
-      try {
-        category =
-          await guild.channels.create({
-            name:
-              savedCategory.name,
-            type:
-              ChannelType.GuildCategory,
-            reason:
-              "emergency backup recovery",
-          });
-      } catch (error) {
-        console.error(
-          `❌ couldn't restore category ${savedCategory.name}:`,
-          error.message
-        );
-
-        continue;
-      }
+    if (!category || category.type !== ChannelType.GuildCategory) {
+      category = await guild.channels.create({
+        name: savedCategory.name,
+        type: ChannelType.GuildCategory,
+        reason: "Emergency server backup restore",
+      });
     }
 
-    categoryMap.set(
-      savedCategory.name,
-      category
-    );
+    categoryMap.set(savedCategory.name, category);
 
-    for (const overwrite of
-      savedCategory.permissionOverwrites) {
+    // Restore permission overwrites
+    for (const overwrite of savedCategory.permissionOverwrites) {
       try {
         await category.permissionOverwrites.edit(
           overwrite.id,
           {
-            allow:
-              BigInt(
-                overwrite.allow
-              ),
-            deny:
-              BigInt(
-                overwrite.deny
-              ),
+            allow: BigInt(overwrite.allow),
+            deny: BigInt(overwrite.deny),
           }
         );
-      } catch {}
+      } catch (error) {
+        console.log(
+          `Could not restore category permission for ${savedCategory.name}`
+        );
+      }
     }
   }
 
-  // ===================================================
-  // CHANNELS
-  // ===================================================
+  // ----------------------------------------------------
+  // RESTORE CHANNELS
+  // ----------------------------------------------------
 
-  for (const savedChannel of
-    backup.channels) {
-    let channel =
-      guild.channels.cache.find(
-        (c) =>
-          c.name ===
-            savedChannel.name &&
-          c.type ===
-            savedChannel.type
-      );
+  for (const savedChannel of backup.channels) {
+    let channel = findChannel(guild, savedChannel.name);
 
-    const parent =
-      savedChannel.parentName
-        ? categoryMap.get(
-            savedChannel.parentName
-          )
-        : null;
+    const parent = savedChannel.parentName
+      ? categoryMap.get(savedChannel.parentName)
+      : null;
 
-    if (!channel) {
-      try {
-        channel =
-          await guild.channels.create({
-            name:
-              savedChannel.name,
-            type:
-              savedChannel.type,
-            parent:
-              parent?.id || null,
-            topic:
-              savedChannel.topic ||
-              undefined,
-            nsfw:
-              savedChannel.nsfw,
-            rateLimitPerUser:
-              savedChannel.rateLimitPerUser,
-            reason:
-              "emergency backup recovery",
-          });
-      } catch (error) {
-        console.error(
-          `❌ couldn't restore channel ${savedChannel.name}:`,
-          error.message
-        );
+    if (!channel || channel.type !== savedChannel.type) {
+      const options = {
+        name: savedChannel.name,
+        type: savedChannel.type,
+        reason: "Emergency server backup restore",
+      };
 
-        continue;
+      if (parent) {
+        options.parent = parent.id;
       }
+
+      if (
+        savedChannel.type === ChannelType.GuildText ||
+        savedChannel.type === ChannelType.GuildAnnouncement
+      ) {
+        options.topic = savedChannel.topic || undefined;
+        options.nsfw = savedChannel.nsfw;
+        options.rateLimitPerUser =
+          savedChannel.rateLimitPerUser || 0;
+      }
+
+      channel = await guild.channels.create(options);
     } else if (parent) {
       try {
-        await channel.setParent(
-          parent.id,
-          {
-            lockPermissions: false,
-          }
+        await channel.setParent(parent.id, {
+          lockPermissions: false,
+        });
+      } catch (error) {
+        console.log(
+          `Could not move ${savedChannel.name} into category`
         );
-      } catch {}
+      }
     }
 
-    for (const overwrite of
-      savedChannel.permissionOverwrites) {
+    // Restore permissions
+    for (const overwrite of savedChannel.permissionOverwrites) {
       try {
         await channel.permissionOverwrites.edit(
           overwrite.id,
           {
-            allow:
-              BigInt(
-                overwrite.allow
-              ),
-            deny:
-              BigInt(
-                overwrite.deny
-              ),
+            allow: BigInt(overwrite.allow),
+            deny: BigInt(overwrite.deny),
           }
         );
-      } catch {}
+      } catch (error) {
+        console.log(
+          `Could not restore permissions for ${savedChannel.name}`
+        );
+      }
     }
   }
 
-  console.log(
-    "✅ backup restored."
-  );
+  return backup;
 }
 
-// =====================================================
+// ======================================================
 // HONEYPOT
-// =====================================================
+// ======================================================
 
 async function ensureHoneypot(guild) {
-  let category =
-    findChannel(
-      guild,
-      "🍯 HONEYPOT SECURITY"
-    );
+  let category = findChannel(
+    guild,
+    "🍯 HONEYPOT SECURITY"
+  );
 
-  if (
-    !category ||
-    category.type !==
-      ChannelType.GuildCategory
-  ) {
-    category =
-      await guild.channels.create({
-        name:
-          "🍯 HONEYPOT SECURITY",
-        type:
-          ChannelType.GuildCategory,
-        reason:
-          "honeypot security",
-      });
-  }
-
-  let channel =
-    findChannel(
-      guild,
-      "🍯・honeypot-security"
-    );
-
-  if (!channel) {
-    channel =
-      await guild.channels.create({
-        name:
-          "🍯・honeypot-security",
-        type:
-          ChannelType.GuildText,
-        parent:
-          category.id,
-        reason:
-          "honeypot security",
-      });
-
-    await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle("🍯 security")
-          .setDescription(
-            [
-              "`security channel`",
-              "",
-              "this channel is monitored.",
-              "",
-              "if you're not staff, don't send anything here.",
-              "",
-              "`messages from regular members trigger the security system.`",
-            ].join("\n")
-          ),
-      ],
+  if (!category) {
+    category = await guild.channels.create({
+      name: "🍯 HONEYPOT SECURITY",
+      type: ChannelType.GuildCategory,
+      reason: "Create honeypot security system",
     });
   }
 
-  return channel;
+  let honeypot = findChannel(
+    guild,
+    "🍯・honeypot-security"
+  );
+
+  if (!honeypot) {
+    honeypot = await guild.channels.create({
+      name: "🍯・honeypot-security",
+      type: ChannelType.GuildText,
+      parent: category.id,
+      reason: "Create honeypot security system",
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle("🍯 honeypot security")
+      .setDescription(
+        "this channel is monitored by the server security system.\n\n" +
+        "do **not** send messages here unless you're staff."
+      );
+
+    await honeypot.send({
+      embeds: [embed],
+    });
+  }
+
+  return honeypot;
 }
 
-// =====================================================
-// HONEYPOT TRIGGER
-// =====================================================
+// ======================================================
+// BOT READY
+// ======================================================
 
-client.on(
-  "messageCreate",
-  async (message) => {
+client.once("ready", async () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+
+  const commands = [
+    {
+      name: "save-backup",
+      description:
+        "save the current server as an emergency backup",
+    },
+    {
+      name: "backup",
+      description:
+        "restore the saved emergency backup",
+    },
+  ];
+
+  try {
+    const rest = new REST({ version: "10" }).setToken(
+      TOKEN
+    );
+
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      {
+        body: commands,
+      }
+    );
+
+    console.log("✅ Slash commands registered.");
+  } catch (error) {
+    console.error(
+      "❌ Failed to register slash commands:",
+      error
+    );
+  }
+
+  // IMPORTANT:
+  // This only creates the honeypot if it doesn't exist.
+  // It does NOT create/rebuild your server layout.
+  for (const guild of client.guilds.cache.values()) {
     try {
-      if (!message.guild) return;
-      if (message.author.bot) return;
-
-      if (
-        message.channel.name !==
-        "🍯・honeypot-security"
-      ) {
-        return;
-      }
-
-      const member =
-        message.member;
-
-      if (!member) return;
-
-      if (
-        member.id ===
-        message.guild.ownerId
-      ) {
-        return;
-      }
-
-      if (isStaff(member)) {
-        return;
-      }
-
-      console.log(
-        `🍯 HONEYPOT TRIGGERED: ${message.author.tag}`
-      );
-
-      await message.delete()
-        .catch(() => {});
-
-      // =================================================
-      // BAN
-      // =================================================
-
-      try {
-        await message.guild.members.ban(
-          member.id,
-          {
-            deleteMessageSeconds: 0,
-            reason:
-              "honeypot security trigger",
-          }
-        );
-      } catch (error) {
-        console.error(
-          "❌ honeypot ban failed:",
-          error
-        );
-
-        return;
-      }
-
-      console.log(
-        `🔨 ${message.author.tag} banned`
-      );
-
-      // =================================================
-      // WAIT
-      // =================================================
-
-      await new Promise(
-        (resolve) =>
-          setTimeout(resolve, 3000)
-      );
-
-      // =================================================
-      // UNBAN
-      // =================================================
-
-      try {
-        await message.guild.members.unban(
-          member.id,
-          "honeypot soft-ban"
-        );
-      } catch (error) {
-        console.error(
-          "❌ honeypot unban failed:",
-          error
-        );
-
-        return;
-      }
-
-      console.log(
-        `🍯 ${message.author.tag} soft-banned`
-      );
-
-      // =================================================
-      // LOG
-      // =================================================
-
-      const moderation =
-        findChannel(
-          message.guild,
-          "🛡️・moderation"
-        );
-
-      if (moderation) {
-        await moderation.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(
-                "🍯 honeypot triggered"
-              )
-              .setDescription(
-                [
-                  `user: ${message.author}`,
-                  `id: \`${member.id}\``,
-                  "",
-                  "message deleted: `✅`",
-                  "ban: `✅`",
-                  "unban: `✅`",
-                  "",
-                  "action: `soft-ban`",
-                ].join("\n")
-              ),
-          ],
-        });
-      }
+      await ensureHoneypot(guild);
     } catch (error) {
       console.error(
-        "❌ honeypot error:",
+        `❌ Honeypot setup failed in ${guild.name}:`,
         error
       );
     }
   }
-);
+});
 
-// =====================================================
+// ======================================================
+// HONEYPOT MESSAGE DETECTION
+// ======================================================
+
+client.on("messageCreate", async (message) => {
+  if (!message.guild) return;
+  if (message.author.bot) return;
+
+  if (message.channel.name !== "🍯・honeypot-security") {
+    return;
+  }
+
+  const member = message.member;
+
+  if (!member) return;
+
+  // Staff is exempt
+  if (isStaff(member)) {
+    return;
+  }
+
+  // Server owner is exempt
+  if (message.guild.ownerId === member.id) {
+    return;
+  }
+
+  try {
+    await message.delete().catch(() => {});
+
+    await message.guild.members.ban(member.id, {
+      deleteMessageSeconds: 0,
+      reason: "Honeypot security trigger",
+    });
+
+    console.log(
+      `🍯 Honeypot triggered by ${member.user.tag}`
+    );
+
+    await sleep(3000);
+
+    await message.guild.members.unban(
+      member.id,
+      "Honeypot soft-ban completed"
+    );
+
+    const modChannel = findChannel(
+      message.guild,
+      "🛡️・moderation"
+    );
+
+    if (modChannel) {
+      await modChannel.send(
+        `🍯 honeypot triggered by **${member.user.tag}** — soft-banned and unbanned.`
+      );
+    }
+  } catch (error) {
+    console.error(
+      "❌ Honeypot error:",
+      error
+    );
+  }
+});
+
+// ======================================================
 // MEMBER JOIN
-// =====================================================
+// ======================================================
 
-client.on(
-  "guildMemberAdd",
-  async (member) => {
-    try {
-      const roleName =
-        member.user.bot
-          ? ROLES.bots
-          : ROLES.member;
+client.on("guildMemberAdd", async (member) => {
+  try {
+    const role = member.user.bot
+      ? findRole(member.guild, ROLES.bots)
+      : findRole(member.guild, ROLES.member);
 
-      const role =
-        findRole(
-          member.guild,
-          roleName
-        );
-
-      if (role) {
-        await member.roles.add(
-          role
-        );
-      }
-
-      if (member.user.bot) return;
-
-      const welcome =
-        findChannel(
-          member.guild,
-          "👋・welcome"
-        );
-
-      const rules =
-        findChannel(
-          member.guild,
-          "📜・rules"
-        );
-
-      const verify =
-        findChannel(
-          member.guild,
-          "✅・verify"
-        );
-
-      if (!welcome) return;
-
-      await welcome.send({
-        content:
-          `${member}`,
-
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(
-              "👋 welcome"
-            )
-            .setDescription(
-              [
-                `yo ${member}! welcome :)`,
-                "",
-                "`1.` read the rules",
-                `\`2.\` go to ${
-                  rules
-                    ? `<#${rules.id}>`
-                    : "rules"
-                }`,
-                `\`3.\` hit ${
-                  verify
-                    ? `<#${verify.id}>`
-                    : "verify"
-                }`,
-                "",
-                "once you're verified, you're good.",
-              ].join("\n")
-            ),
-        ],
-
-        allowedMentions: {
-          users: [member.id],
-        },
-      });
-    } catch (error) {
-      console.error(
-        "❌ member join error:",
-        error
-      );
+    if (role) {
+      await member.roles.add(role);
     }
+
+    const welcomeChannel = findChannel(
+      member.guild,
+      "👋・welcome"
+    );
+
+    if (welcomeChannel) {
+      const embed = new EmbedBuilder()
+        .setTitle("👋 welcome!")
+        .setDescription(
+          `welcome ${member} to **${member.guild.name}**!\n\n` +
+          `make sure to check the rules and verify.`
+        )
+        .setThumbnail(member.user.displayAvatarURL());
+
+      await welcomeChannel.send({
+        embeds: [embed],
+      });
+    }
+  } catch (error) {
+    console.error(
+      "❌ Member join error:",
+      error
+    );
   }
-);
+});
 
-// =====================================================
+// ======================================================
 // INTERACTIONS
-// =====================================================
+// ======================================================
 
-client.on(
-  "interactionCreate",
-  async (interaction) => {
+client.on("interactionCreate", async (interaction) => {
+  // ====================================================
+  // SLASH COMMANDS
+  // ====================================================
 
-    // =================================================
-    // /SAVE-BACKUP
-    // =================================================
+  if (interaction.isChatInputCommand()) {
 
-    if (
-      interaction.isChatInputCommand() &&
-      interaction.commandName ===
-        "save-backup"
-    ) {
+    // --------------------------------------------------
+    // SAVE BACKUP
+    // --------------------------------------------------
+
+    if (interaction.commandName === "save-backup") {
       if (
-        !interaction.member.permissions.has(
+        !interaction.memberPermissions?.has(
           PermissionFlagsBits.Administrator
         )
       ) {
         return interaction.reply({
           content:
-            "`❌` you need **Administrator** to use this.",
+            "❌ you need Administrator to use this.",
           ephemeral: true,
         });
       }
@@ -787,50 +574,39 @@ client.on(
       });
 
       try {
-        await saveBackup(
-          interaction.guild
-        );
+        await saveBackup(interaction.guild);
 
         await interaction.editReply(
-          [
-            "`💾` **backup saved**",
-            "",
-            "your server's current roles, categories, channels, and permissions are now saved.",
-            "",
-            "this backup will **not** be automatically overwritten.",
-          ].join("\n")
+          "✅ **backup saved.**\n\n" +
+          "this is now the server snapshot that `/backup` will restore."
         );
       } catch (error) {
         console.error(
-          "❌ save-backup failed:",
+          "❌ Backup save error:",
           error
         );
 
         await interaction.editReply(
-          "`❌` couldn't save the backup. check the bot's permissions."
+          "❌ failed to save the backup."
         );
       }
 
       return;
     }
 
-    // =================================================
-    // /BACKUP
-    // =================================================
+    // --------------------------------------------------
+    // RESTORE BACKUP
+    // --------------------------------------------------
 
-    if (
-      interaction.isChatInputCommand() &&
-      interaction.commandName ===
-        "backup"
-    ) {
+    if (interaction.commandName === "backup") {
       if (
-        !interaction.member.permissions.has(
+        !interaction.memberPermissions?.has(
           PermissionFlagsBits.Administrator
         )
       ) {
         return interaction.reply({
           content:
-            "`❌` you need **Administrator** to use this.",
+            "❌ you need Administrator to use this.",
           ephemeral: true,
         });
       }
@@ -840,668 +616,289 @@ client.on(
       });
 
       try {
-        const backup =
-          loadBackup();
+        const backup = loadBackup();
 
         if (!backup) {
           return interaction.editReply(
-            "`❌` no backup exists. use `/save-backup` first."
+            "❌ no backup exists yet.\n\n" +
+            "use `/save-backup` first."
           );
         }
 
-        if (
-          backup.guildId !==
-          interaction.guild.id
-        ) {
-          return interaction.editReply(
-            "`❌` this backup belongs to another server."
-          );
-        }
-
-        await restoreBackup(
-          interaction.guild
-        );
-
-        await ensureHoneypot(
-          interaction.guild
-        );
+        await restoreBackup(interaction.guild);
+        await ensureHoneypot(interaction.guild);
 
         await interaction.editReply(
-          [
-            "`🛡️` **backup restored**",
-            "",
-            "your saved server structure and permissions have been restored.",
-            "",
-            "🍯 honeypot is active.",
-          ].join("\n")
+          "✅ **backup restored.**\n\n" +
+          `backup from ${new Date(
+            backup.savedAt
+          ).toLocaleString()} was restored.`
         );
       } catch (error) {
         console.error(
-          "❌ backup restore failed:",
+          "❌ Backup restore error:",
           error
         );
 
         await interaction.editReply(
-          "`❌` restore failed. make sure the bot has Administrator and its role is high enough."
+          "❌ backup restore failed.\n\n" +
+          `error: ${error.message}`
         );
       }
 
       return;
     }
+  }
 
-    // =================================================
-    // /TEST-HONEYPOT
-    // =================================================
+  // ====================================================
+  // BUTTONS
+  // ====================================================
 
-    if (
-      interaction.isChatInputCommand() &&
-      interaction.commandName ===
-        "test-honeypot"
-    ) {
-      if (
-        !interaction.member.permissions.has(
-          PermissionFlagsBits.Administrator
-        )
-      ) {
-        return interaction.reply({
-          content:
-            "`❌` you need **Administrator** to use this.",
-          ephemeral: true,
-        });
-      }
+  if (interaction.isButton()) {
 
-      if (
-        interaction.user.id ===
-        interaction.guild.ownerId
-      ) {
-        return interaction.reply({
-          content:
-            "`❌` the server owner can't be used for this test.",
-          ephemeral: true,
-        });
-      }
-
-      await interaction.deferReply({
-        ephemeral: true,
-      });
-
-      try {
-        const member =
-          await interaction.guild.members.fetch(
-            interaction.user.id
-          );
-
-        // BAN
-        await member.ban({
-          deleteMessageSeconds: 0,
-          reason:
-            "honeypot test",
-        });
-
-        console.log(
-          `🍯 TEST: ${interaction.user.tag} banned`
-        );
-
-        // WAIT
-        await new Promise(
-          (resolve) =>
-            setTimeout(resolve, 3000)
-        );
-
-        // UNBAN
-        await interaction.guild.members.unban(
-          interaction.user.id,
-          "honeypot test soft-ban"
-        );
-
-        console.log(
-          `🍯 TEST: ${interaction.user.tag} unbanned`
-        );
-
-        const moderation =
-          findChannel(
-            interaction.guild,
-            "🛡️・moderation"
-          );
-
-        if (moderation) {
-          await moderation.send({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle(
-                  "🍯 honeypot test"
-                )
-                .setDescription(
-                  [
-                    `user: ${interaction.user}`,
-                    `id: \`${interaction.user.id}\``,
-                    "",
-                    "ban: `✅`",
-                    "unban: `✅`",
-                    "",
-                    "result: `soft-ban successful`",
-                  ].join("\n")
-                ),
-            ],
-          });
-        }
-
-        await interaction.editReply(
-          "`✅` honeypot works — you were banned and automatically unbanned."
-        );
-      } catch (error) {
-        console.error(
-          "❌ honeypot test failed:",
-          error
-        );
-
-        await interaction.editReply(
-          "`❌` honeypot test failed. make sure the bot has **Ban Members** and its role is above the account being tested."
-        );
-      }
-
-      return;
-    }
-
-    // =================================================
+    // --------------------------------------------------
     // VERIFY
-    // =================================================
+    // --------------------------------------------------
 
-    if (
-      interaction.isButton() &&
-      interaction.customId ===
-        "verify_member"
-    ) {
-      const role =
-        findRole(
-          interaction.guild,
-          ROLES.verified
-        );
+    if (interaction.customId === "verify") {
+      const role = findRole(
+        interaction.guild,
+        ROLES.verified
+      );
 
       if (!role) {
         return interaction.reply({
           content:
-            "`❌` verified role doesn't exist.",
+            "❌ the verified role doesn't exist.",
           ephemeral: true,
         });
       }
 
-      if (
-        interaction.member.roles.cache.has(
-          role.id
-        )
-      ) {
+      if (interaction.member.roles.cache.has(role.id)) {
         return interaction.reply({
           content:
-            "`✅` you're already verified.",
+            "✅ you're already verified.",
           ephemeral: true,
         });
       }
 
       try {
-        await interaction.member.roles.add(
-          role
-        );
+        await interaction.member.roles.add(role);
 
-        await interaction.reply({
+        return interaction.reply({
           content:
-            "`✅` verified. welcome :)",
+            "✅ you're verified!",
           ephemeral: true,
         });
-      } catch {
-        await interaction.reply({
+      } catch (error) {
+        return interaction.reply({
           content:
-            "`❌` couldn't give you the verified role.",
+            "❌ i couldn't give you the verified role.",
           ephemeral: true,
         });
       }
-
-      return;
     }
 
-    // =================================================
+    // --------------------------------------------------
     // CREATE TICKET
-    // =================================================
+    // --------------------------------------------------
 
-    if (
-      interaction.isButton() &&
-      interaction.customId ===
-        "create_ticket"
-    ) {
-      const safeUsername =
-        interaction.user.username
-          .toLowerCase()
-          .replace(
-            /[^a-z0-9]/g,
-            ""
-          )
-          .slice(0, 20);
-
-      const ticketName =
-        `ticket-${safeUsername}`;
-
-      const existing =
-        interaction.guild.channels.cache.find(
-          (channel) =>
-            channel.name ===
-            ticketName
-        );
+    if (interaction.customId === "create_ticket") {
+      const existing = interaction.guild.channels.cache.find(
+        (channel) =>
+          channel.name ===
+          `ticket-${safeName(
+            interaction.user.username
+          )}`
+      );
 
       if (existing) {
         return interaction.reply({
           content:
-            `\`🎫\` you already have a ticket: ${existing}`,
+            `🎫 you already have a ticket: ${existing}`,
           ephemeral: true,
         });
       }
 
-      const ticketsPanel =
-        findChannel(
-          interaction.guild,
-          "🎫・tickets"
-        );
+      const supportRole = findRole(
+        interaction.guild,
+        ROLES.support
+      );
 
-      const supportCategory =
-        ticketsPanel?.parent;
+      const staffRole = findRole(
+        interaction.guild,
+        ROLES.staff
+      );
 
-      const staffOverwrites = [];
+      const overwrites = [
+        {
+          id: interaction.guild.id,
+          deny: [
+            PermissionFlagsBits.ViewChannel,
+          ],
+        },
+        {
+          id: interaction.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        },
+      ];
 
-      for (const staffName of
-        STAFF_ROLES) {
-        const role =
-          findRole(
-            interaction.guild,
-            staffName
-          );
-
-        if (role) {
-          staffOverwrites.push({
-            id: role.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-              PermissionFlagsBits.AttachFiles,
-            ],
-          });
-        }
+      if (supportRole) {
+        overwrites.push({
+          id: supportRole.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        });
       }
 
-      const ticket =
-        await interaction.guild.channels.create(
-          {
-            name: ticketName,
-            type:
-              ChannelType.GuildText,
-            parent:
-              supportCategory?.id ||
-              null,
+      if (staffRole) {
+        overwrites.push({
+          id: staffRole.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        });
+      }
 
-            permissionOverwrites: [
-              {
-                id:
-                  interaction.guild.roles
-                    .everyone.id,
+      const ticket = await interaction.guild.channels.create({
+        name: `ticket-${safeName(
+          interaction.user.username
+        )}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: overwrites,
+      });
 
-                deny: [
-                  PermissionFlagsBits.ViewChannel,
-                ],
-              },
-
-              {
-                id:
-                  interaction.user.id,
-
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.SendMessages,
-                  PermissionFlagsBits.ReadMessageHistory,
-                  PermissionFlagsBits.AttachFiles,
-                ],
-              },
-
-              ...staffOverwrites,
-            ],
-          }
+      const embed = new EmbedBuilder()
+        .setTitle("🎫 support ticket")
+        .setDescription(
+          `${interaction.user}, staff will be with you shortly.\n\n` +
+          "please explain what you need help with."
         );
 
-      const closeButton =
+      const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(
-            "close_ticket"
-          )
-          .setLabel(
-            "🔒 Close Ticket"
-          )
-          .setStyle(
-            ButtonStyle.Danger
-          );
+          .setCustomId("close_ticket")
+          .setLabel("close ticket")
+          .setStyle(ButtonStyle.Danger)
+      );
 
       await ticket.send({
-        content:
-          `${interaction.user}`,
-
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(
-              "🎫 ticket"
-            )
-            .setDescription(
-              [
-                "yo! staff will be with you soon.",
-                "",
-                "tell us what's up and we'll help.",
-                "",
-                "`🔒` close the ticket when you're done.",
-              ].join("\n")
-            ),
-        ],
-
-        components: [
-          new ActionRowBuilder()
-            .addComponents(
-              closeButton
-            ),
-        ],
+        content: `${interaction.user}`,
+        embeds: [embed],
+        components: [row],
       });
 
-      await interaction.reply({
-        content:
-          `\`🎫\` ticket created: ${ticket}`,
+      return interaction.reply({
+        content: `🎫 ticket created: ${ticket}`,
         ephemeral: true,
       });
-
-      return;
     }
 
-    // =================================================
+    // --------------------------------------------------
     // CLOSE TICKET
-    // =================================================
+    // --------------------------------------------------
 
-    if (
-      interaction.isButton() &&
-      interaction.customId ===
-        "close_ticket"
-    ) {
-      if (
-        !isStaff(
-          interaction.member
-        )
-      ) {
+    if (interaction.customId === "close_ticket") {
+      if (!isStaff(interaction.member)) {
         return interaction.reply({
           content:
-            "`❌` only staff can close tickets.",
+            "❌ staff only.",
           ephemeral: true,
         });
       }
 
       await interaction.reply(
-        "`🔒` closing ticket..."
+        "🔒 closing ticket..."
       );
 
-      setTimeout(
-        async () => {
-          await interaction.channel
-            .delete(
-              "ticket closed"
-            )
-            .catch(() => {});
-        },
-        1500
+      await sleep(2000);
+
+      await interaction.channel.delete(
+        "Ticket closed by staff"
       );
 
       return;
     }
 
-    // =================================================
+    // --------------------------------------------------
     // MODERATOR APPLICATION
-    // =================================================
+    // --------------------------------------------------
 
-    if (
-      interaction.isButton() &&
-      interaction.customId ===
-        "moderator_apply"
-    ) {
-      const modal =
-        new ModalBuilder()
-          .setCustomId(
-            "moderator_application"
-          )
-          .setTitle(
-            "moderator application"
-          );
+    if (interaction.customId === "moderator_apply") {
+      const modal = new ModalBuilder()
+        .setCustomId("moderator_application")
+        .setTitle("moderator application");
 
-      const age =
-        new TextInputBuilder()
-          .setCustomId("age")
-          .setLabel("age")
-          .setStyle(
-            TextInputStyle.Short
-          )
-          .setRequired(true)
-          .setMaxLength(3);
+      const age = new TextInputBuilder()
+        .setCustomId("age")
+        .setLabel("age")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
 
-      const timezone =
-        new TextInputBuilder()
-          .setCustomId(
-            "timezone"
-          )
-          .setLabel(
-            "timezone"
-          )
-          .setStyle(
-            TextInputStyle.Short
-          )
-          .setRequired(true);
+      const timezone = new TextInputBuilder()
+        .setCustomId("timezone")
+        .setLabel("timezone")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
 
-      const experience =
-        new TextInputBuilder()
-          .setCustomId(
-            "experience"
-          )
-          .setLabel(
-            "previous moderation experience"
-          )
-          .setStyle(
-            TextInputStyle.Paragraph
-          )
-          .setRequired(true)
-          .setMaxLength(1000);
+      const experience = new TextInputBuilder()
+        .setCustomId("experience")
+        .setLabel("staff experience")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
 
-      const why =
-        new TextInputBuilder()
-          .setCustomId("why")
-          .setLabel(
-            "why should we choose you?"
-          )
-          .setStyle(
-            TextInputStyle.Paragraph
-          )
-          .setRequired(true)
-          .setMaxLength(1500);
+      const why = new TextInputBuilder()
+        .setCustomId("why")
+        .setLabel("why should we choose you?")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
 
-      const activity =
-        new TextInputBuilder()
-          .setCustomId(
-            "activity"
-          )
-          .setLabel(
-            "how active are you?"
-          )
-          .setStyle(
-            TextInputStyle.Paragraph
-          )
-          .setRequired(true)
-          .setMaxLength(1000);
+      const activity = new TextInputBuilder()
+        .setCustomId("activity")
+        .setLabel("how active can you be?")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
 
       modal.addComponents(
-        new ActionRowBuilder()
-          .addComponents(age),
-
-        new ActionRowBuilder()
-          .addComponents(timezone),
-
-        new ActionRowBuilder()
-          .addComponents(
-            experience
-          ),
-
-        new ActionRowBuilder()
-          .addComponents(why),
-
-        new ActionRowBuilder()
-          .addComponents(
-            activity
-          )
+        new ActionRowBuilder().addComponents(age),
+        new ActionRowBuilder().addComponents(timezone),
+        new ActionRowBuilder().addComponents(experience),
+        new ActionRowBuilder().addComponents(why),
+        new ActionRowBuilder().addComponents(activity)
       );
 
-      await interaction.showModal(
-        modal
-      );
-
-      return;
+      return interaction.showModal(modal);
     }
 
-    // =================================================
-    // APPLICATION SUBMIT
-    // =================================================
+    // --------------------------------------------------
+    // APPLICATION ACCEPT
+    // --------------------------------------------------
 
-    if (
-      interaction.isModalSubmit() &&
-      interaction.customId ===
-        "moderator_application"
-    ) {
-      const pending =
-        findChannel(
-          interaction.guild,
-          "⏳・pending"
-        );
-
-      if (!pending) {
-        return interaction.reply({
-          content:
-            "`❌` application channel is missing.",
-          ephemeral: true,
-        });
-      }
-
-      const age =
-        interaction.fields.getTextInputValue(
-          "age"
-        );
-
-      const timezone =
-        interaction.fields.getTextInputValue(
-          "timezone"
-        );
-
-      const experience =
-        interaction.fields.getTextInputValue(
-          "experience"
-        );
-
-      const why =
-        interaction.fields.getTextInputValue(
-          "why"
-        );
-
-      const activity =
-        interaction.fields.getTextInputValue(
-          "activity"
-        );
-
-      const application =
-        new EmbedBuilder()
-          .setTitle(
-            "📝 moderator application"
-          )
-          .setDescription(
-            [
-              `applicant: ${interaction.user}`,
-              `id: \`${interaction.user.id}\``,
-              "",
-              `**age**\n${age}`,
-              "",
-              `**timezone**\n${timezone}`,
-              "",
-              `**experience**\n${experience}`,
-              "",
-              `**why them**\n${why}`,
-              "",
-              `**activity**\n${activity}`,
-            ].join("\n")
-          );
-
-      const accept =
-        new ButtonBuilder()
-          .setCustomId(
-            `app_accept_${interaction.user.id}`
-          )
-          .setLabel(
-            "✅ Accept"
-          )
-          .setStyle(
-            ButtonStyle.Success
-          );
-
-      const deny =
-        new ButtonBuilder()
-          .setCustomId(
-            `app_deny_${interaction.user.id}`
-          )
-          .setLabel(
-            "❌ Deny"
-          )
-          .setStyle(
-            ButtonStyle.Danger
-          );
-
-      await pending.send({
-        embeds: [application],
-
-        components: [
-          new ActionRowBuilder()
-            .addComponents(
-              accept,
-              deny
-            ),
-        ],
-      });
-
-      await interaction.reply({
-        content:
-          "`✅` application sent. good luck :)",
-        ephemeral: true,
-      });
-
-      return;
-    }
-
-    // =================================================
-    // ACCEPT APPLICATION
-    // =================================================
-
-    if (
-      interaction.isButton() &&
-      interaction.customId.startsWith(
-        "app_accept_"
-      )
-    ) {
+    if (interaction.customId.startsWith("application_accept_")) {
       if (
-        !interaction.member.permissions.has(
+        !interaction.memberPermissions?.has(
           PermissionFlagsBits.ManageGuild
         )
       ) {
         return interaction.reply({
           content:
-            "`❌` you can't manage applications.",
+            "❌ staff only.",
           ephemeral: true,
         });
       }
 
       const userId =
         interaction.customId.replace(
-          "app_accept_",
+          "application_accept_",
           ""
         );
 
@@ -1513,77 +910,55 @@ client.on(
       if (!member) {
         return interaction.reply({
           content:
-            "`❌` that member isn't in the server anymore.",
+            "❌ that member is no longer in the server.",
           ephemeral: true,
         });
       }
 
-      const moderator =
-        findRole(
-          interaction.guild,
-          ROLES.moderator
-        );
+      const moderatorRole = findRole(
+        interaction.guild,
+        ROLES.moderator
+      );
 
-      if (moderator) {
-        await member.roles.add(
-          moderator
-        );
+      if (moderatorRole) {
+        await member.roles.add(moderatorRole);
       }
 
-      const accepted =
-        findChannel(
-          interaction.guild,
-          "✅・accepted"
-        );
-
-      if (accepted) {
-        await accepted.send(
-          `✅ ${member} was accepted as a moderator.`
-        );
-      }
-
-      await interaction.message.edit({
+      await interaction.update({
+        content: `✅ accepted ${member}`,
+        embeds: interaction.message.embeds,
         components: [],
       });
 
-      await interaction.reply(
-        "`✅` application accepted."
-      );
-
       await member
         .send(
-          "`✅` your moderator application was accepted!\n\nwelcome to the staff team :)"
+          `🎉 your moderator application for **${interaction.guild.name}** was accepted!`
         )
         .catch(() => {});
 
       return;
     }
 
-    // =================================================
-    // DENY APPLICATION
-    // =================================================
+    // --------------------------------------------------
+    // APPLICATION DENY
+    // --------------------------------------------------
 
-    if (
-      interaction.isButton() &&
-      interaction.customId.startsWith(
-        "app_deny_"
-      )
-    ) {
+    if (interaction.customId.startsWith("application_deny_")) {
       if (
-        !interaction.member.permissions.has(
+        !interaction.memberPermissions?.has(
           PermissionFlagsBits.ManageGuild
         )
       ) {
         return interaction.reply({
           content:
-            "`❌` you can't manage applications.",
+            "❌ staff only.",
           ephemeral: true,
         });
       }
 
       const userId =
         interaction.customId.replace(
-          "app_deny_",
+          "application_deny_",
           ""
         );
 
@@ -1592,30 +967,16 @@ client.on(
           .fetch(userId)
           .catch(() => null);
 
-      const denied =
-        findChannel(
-          interaction.guild,
-          "❌・denied"
-        );
-
-      if (denied) {
-        await denied.send(
-          `❌ application denied for <@${userId}>.`
-        );
-      }
-
-      await interaction.message.edit({
+      await interaction.update({
+        content: `❌ application denied${member ? ` for ${member}` : ""}`,
+        embeds: interaction.message.embeds,
         components: [],
       });
-
-      await interaction.reply(
-        "`❌` application denied."
-      );
 
       if (member) {
         await member
           .send(
-            "`❌` your moderator application was denied.\n\nthanks for applying. you can always try again later."
+            `your moderator application for **${interaction.guild.name}** was denied.`
           )
           .catch(() => {});
       }
@@ -1623,75 +984,94 @@ client.on(
       return;
     }
   }
-);
 
-// =====================================================
-// READY
-// =====================================================
+  // ====================================================
+  // MODERATOR APPLICATION SUBMISSION
+  // ====================================================
 
-client.once(
-  "ready",
-  async () => {
-    console.log(
-      `🤖 ${client.user.tag} is online`
+  if (
+    interaction.isModalSubmit() &&
+    interaction.customId === "moderator_application"
+  ) {
+    const pendingChannel = findChannel(
+      interaction.guild,
+      "⏳・pending"
     );
 
-    const rest =
-      new REST({
-        version: "10",
-      }).setToken(TOKEN);
-
-    try {
-      await rest.put(
-        Routes.applicationCommands(
-          client.user.id
-        ),
-        {
-          body: [
-            {
-              name:
-                "save-backup",
-              description:
-                "save the current server as an emergency backup",
-            },
-            {
-              name:
-                "backup",
-              description:
-                "restore the saved emergency backup",
-            },
-            {
-              name:
-                "test-honeypot",
-              description:
-                "test the honeypot soft-ban",
-            },
-          ],
-        }
-      );
-
-      console.log(
-        "✅ commands registered."
-      );
-    } catch (error) {
-      console.error(
-        "❌ command registration failed:",
-        error
-      );
+    if (!pendingChannel) {
+      return interaction.reply({
+        content:
+          "❌ the pending applications channel doesn't exist.",
+        ephemeral: true,
+      });
     }
 
-    // IMPORTANT:
-    // We DO NOT save automatically here.
-    // Your backup stays exactly as you saved it.
+    const age =
+      interaction.fields.getTextInputValue("age");
 
-    console.log(
-      "💚 bot is ready."
+    const timezone =
+      interaction.fields.getTextInputValue(
+        "timezone"
+      );
+
+    const experience =
+      interaction.fields.getTextInputValue(
+        "experience"
+      );
+
+    const why =
+      interaction.fields.getTextInputValue("why");
+
+    const activity =
+      interaction.fields.getTextInputValue(
+        "activity"
+      );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🛡️ new moderator application")
+      .setDescription(
+        `applicant: ${interaction.user}\n\n` +
+        `**age**\n${age}\n\n` +
+        `**timezone**\n${timezone}\n\n` +
+        `**experience**\n${experience}\n\n` +
+        `**why**\n${why}\n\n` +
+        `**activity**\n${activity}`
+      )
+      .setFooter({
+        text: `user id: ${interaction.user.id}`,
+      });
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(
+          `application_accept_${interaction.user.id}`
+        )
+        .setLabel("accept")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId(
+          `application_deny_${interaction.user.id}`
+        )
+        .setLabel("deny")
+        .setStyle(ButtonStyle.Danger)
     );
-  }
-);
 
-// =====================================================
+    await pendingChannel.send({
+      embeds: [embed],
+      components: [row],
+    });
+
+    return interaction.reply({
+      content:
+        "✅ application submitted!",
+      ephemeral: true,
+    });
+  }
+});
+
+// ======================================================
 // LOGIN
-// =====================================================
+// ======================================================
 
 client.login(TOKEN);
